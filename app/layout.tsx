@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import BottomNav from "@/components/bottom-nav";
+import { TelegramProvider } from "@/components/TelegramProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,16 +30,22 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
+      <head>
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+      </head>
       <body
         className="min-h-full flex flex-col"
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
-        {/* Main scrollable area above bottom nav */}
-        <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+        <TelegramProvider>
+          {/* Main scrollable area above bottom nav */}
+          <main className="flex-1 overflow-y-auto pb-20">{children}</main>
 
-        {/* Sticky bottom navigation */}
-        <BottomNav />
+          {/* Sticky bottom navigation */}
+          <BottomNav />
+        </TelegramProvider>
       </body>
     </html>
   );
