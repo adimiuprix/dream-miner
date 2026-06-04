@@ -2,7 +2,10 @@
 
 import MiningRing from "@/components/MiningRing";
 import TopBar from "@/components/home/TopBar";
-import HashCounter from "@/components/home/HashCounter";
+import dynamic from "next/dynamic";
+
+const HashCounter = dynamic(() => import("@/components/home/HashCounter"), { ssr: false });
+
 import StatsBar from "@/components/home/StatsBar";
 import ContractSection from "@/components/home/ContractSection";
 import SwapCard from "@/components/home/SwapCard";
