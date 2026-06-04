@@ -14,62 +14,42 @@ export interface ITelegramUser {
 export interface ITelegramContext {
   webApp: typeof WebApp | null;
   user: ITelegramUser | null;
-  isNewUser: boolean;
-  completeOnboarding: () => void;
+  isReady: boolean;
 }
 
 export const TelegramContext = createContext<ITelegramContext>({
   webApp: null,
   user: null,
-  isNewUser: false,
-  completeOnboarding: () => {},
+  isReady: false,
 });
 
 export const TelegramProvider = ({ children }: { children: ReactNode }) => {
   const [webApp, setWebApp] = useState<typeof WebApp | null>(null);
-  const [isNewUser, setIsNewUser] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Ensuring it only runs on the client
     if (typeof window !== "undefined") {
       try {
         const app = WebApp;
-        // Initialize the Telegram Web App
         app.ready();
-        // Expanding the app to full height by default is usually preferred
         app.expand();
         setWebApp(app);
       } catch (error) {
-        console.warn("Error initializing Telegram Web App:", error);
+        console.warn("Telegram Web App not available (browser mode):", error);
       } finally {
-        // Check local storage for onboarding state
-        const hasStarted = localStorage.getItem("dream_miner_started");
-        if (!hasStarted) {
-          setIsNewUser(true);
-        }
-        setIsLoading(false);
+        setIsReady(true);
       }
     }
   }, []);
 
-  const completeOnboarding = () => {
-    localStorage.setItem("dream_miner_started", "true");
-    setIsNewUser(false);
-  };
-
-  if (isLoading) {
-    // Prevent hydration mismatch or flash of content by rendering nothing until client check is done
-    return null;
-  }
+  if (!isReady) return null;
 
   return (
     <TelegramContext.Provider
       value={{
         webApp,
         user: webApp ? (webApp.initDataUnsafe.user as ITelegramUser) : null,
-        isNewUser,
-        completeOnboarding,
+        isReady,
       }}
     >
       {children}

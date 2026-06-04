@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { TelegramProvider } from "@/components/TelegramProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 import AppWrapper from "@/components/AppWrapper";
 
 const geistSans = Geist({
@@ -40,7 +41,9 @@ export default function RootLayout({
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
         <TelegramProvider>
-          <AppWrapper>{children}</AppWrapper>
+          <AuthProvider>
+            <AppWrapper>{children}</AppWrapper>
+          </AuthProvider>
         </TelegramProvider>
       </body>
     </html>
