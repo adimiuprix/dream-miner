@@ -33,19 +33,23 @@ export const TelegramProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Ensuring it only runs on the client
     if (typeof window !== "undefined") {
-      const app = WebApp;
-      // Initialize the Telegram Web App
-      app.ready();
-      // Expanding the app to full height by default is usually preferred
-      app.expand();
-      setWebApp(app);
-
-      // Check local storage for onboarding state
-      const hasStarted = localStorage.getItem("dream_miner_started");
-      if (!hasStarted) {
-        setIsNewUser(true);
+      try {
+        const app = WebApp;
+        // Initialize the Telegram Web App
+        app.ready();
+        // Expanding the app to full height by default is usually preferred
+        app.expand();
+        setWebApp(app);
+      } catch (error) {
+        console.warn("Error initializing Telegram Web App:", error);
+      } finally {
+        // Check local storage for onboarding state
+        const hasStarted = localStorage.getItem("dream_miner_started");
+        if (!hasStarted) {
+          setIsNewUser(true);
+        }
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
   }, []);
 
