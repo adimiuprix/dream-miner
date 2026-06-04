@@ -11,6 +11,7 @@
   "dependencies": {
     "@ark-ui/react": "^5.37.0",
     "@fortawesome/fontawesome-free": "^7.2.0",
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@twa-dev/sdk": "^8.0.2",
     "class-variance-authority": "^0.7.1",
@@ -18,6 +19,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
+    "pg": "^8.21.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
