@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import BottomNav from "@/components/bottom-nav";
 import { TelegramProvider } from "@/components/TelegramProvider";
+import AppWrapper from "@/components/AppWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,11 +40,7 @@ export default function RootLayout({
         style={{ background: "var(--background)", color: "var(--foreground)" }}
       >
         <TelegramProvider>
-          {/* Main scrollable area above bottom nav */}
-          <main className="flex-1 overflow-y-auto pb-20">{children}</main>
-
-          {/* Sticky bottom navigation */}
-          <BottomNav />
+          <AppWrapper>{children}</AppWrapper>
         </TelegramProvider>
       </body>
     </html>

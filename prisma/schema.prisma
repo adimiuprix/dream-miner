@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -10,4 +8,33 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  telegramId   BigInt   @unique
+  username     String?
+  firstName    String
+  lastName     String?
+  languageCode String?
+
+  // Mining stats
+  power        Float    @default(0) // Total power for mining
+  hashes       Float    @default(0) // Accumulated mined currency
+  tonBalance   Float    @default(0) // Converted TON balance
+
+  // Referral System
+  referralCode String   @unique @default(cuid()) // Unique code for sharing
+  referredById String?
+  referredBy   User?    @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals    User[]   @relation("UserReferrals")
+
+  // Activity Tracking
+  lastPingAt   DateTime @default(now()) // To check if user is active/mining
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships (can be expanded later)
+  // contracts   Contract[]
+  // transactions Transaction[]
 }
