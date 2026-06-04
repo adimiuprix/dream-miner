@@ -171,7 +171,7 @@ export default function MiningRing() {
               fontFamily: "'Inter', 'SF Pro', system-ui, sans-serif",
             }}
           >
-            24Hashes
+            Anjayyy Mining
           </span>
         </div>
       </div>
