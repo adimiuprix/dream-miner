@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Modal } from "@/components/ui/modal";
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogBody,
+} from "@/components/ui/dialog";
 import { AlertTriangle, User, ArrowDownUp, Shield } from "lucide-react";
-import Image from "next/image";
 
 interface SwapPreview {
   canSwap: boolean;
@@ -104,17 +107,22 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
   };
 
   return (
-    <Modal
+    <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      size="md"
-      showCloseButton={true}
-      bottomStickOnMobile={true}
-      contentClassName="!bg-[#0a1612] !border-[#1a3329]"
+      lazyMount
+      unmountOnExit
     >
-      <div className="relative">
-        {/* Header with glowing icon */}
-        <div className="flex flex-col items-center pt-8 pb-6">
+      <DialogContent
+        size="md"
+        showCloseButton={true}
+        bottomStickOnMobile={true}
+        className="!bg-[#0a1612] !border-[#1a3329]"
+      >
+        <DialogBody scrollFade={false} className="!p-0">
+          <div className="relative px-4 pb-4">
+            {/* Header with glowing icon */}
+            <div className="flex flex-col items-center pt-8 pb-6">
           {/* Glowing TON Icon */}
           <div className="relative mb-6">
             {/* Outer glow */}
@@ -273,6 +281,8 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
           ) : null}
         </div>
       </div>
-    </Modal>
+    </DialogBody>
+  </DialogContent>
+</Dialog>
   );
 }
