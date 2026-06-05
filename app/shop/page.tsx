@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/AuthProvider";
 import PageHeader from "@/components/ui/PageHeader";
-import PlanCard from "@/components/shop/PlanCard";
-import ShopFooter from "@/components/shop/ShopFooter";
+import PlanCard from "@/components/PlanCard";
+import ShopFooter from "@/components/ShopFooter";
 import { POWER_PLANS, createPaymentTransaction, PAYMENT_RECEIVER_ADDRESS } from "@/lib/tonPayment";
 
 export default function ShopPage() {
