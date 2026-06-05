@@ -7,17 +7,33 @@ export interface PowerPlan {
   bonusColor: string | null;
 }
 
-export default function PlanCard({ plan }: { plan: PowerPlan }) {
+interface PlanCardProps {
+  plan: PowerPlan;
+  onPurchase?: (planId: string) => void;
+  loading?: boolean;
+}
+
+export default function PlanCard({ plan, onPurchase, loading = false }: PlanCardProps) {
+  const handleClick = () => {
+    if (onPurchase && !loading) {
+      onPurchase(plan.id);
+    }
+  };
+
   return (
     <button
       id={plan.id}
-      className="flex items-center justify-between w-full rounded-2xl px-4 py-4 text-left transition-all duration-200"
+      onClick={handleClick}
+      disabled={loading}
+      className="flex items-center justify-between w-full rounded-2xl px-4 py-4 text-left transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       style={{
         background: "#161616",
         border: "1px solid rgba(255,255,255,0.06)",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,212,170,0.2)";
+        if (!loading) {
+          (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,212,170,0.2)";
+        }
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.06)";
@@ -46,6 +62,12 @@ export default function PlanCard({ plan }: { plan: PowerPlan }) {
 
       {/* Right: bonus + price */}
       <div className="flex items-center gap-2">
+        {loading && (
+          <div
+            className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: "var(--dm-green)", borderTopColor: "transparent" }}
+          />
+        )}
         {plan.bonus && (
           <span
             className="text-xs font-bold px-2 py-1 rounded-lg"

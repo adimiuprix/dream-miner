@@ -34,7 +34,74 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Relationships (can be expanded later)
-  // contracts   Contract[]
-  // transactions Transaction[]
+  // Relationships
+  contracts    Contract[]
+  transactions Transaction[]
+}
+
+model Contract {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  planId    String   // e.g., "plan-118k"
+  power     Float    // Total power from this contract
+  price     Float    // Price paid in TON
+  bonus     Float    @default(0) // Bonus power received
+  
+  status    ContractStatus @default(ACTIVE)
+  expiresAt DateTime // When this contract expires
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type          TransactionType
+  amount        Float    // Amount in TON or HASHES
+  status        TransactionStatus @default(PENDING)
+  
+  // TON transaction details
+  txHash        String?  // Blockchain transaction hash
+  fromAddress   String?  // Sender wallet
+  toAddress     String?  // Receiver wallet
+  
+  // Additional data
+  metadata      String?  // JSON string for extra data
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([txHash])
+}
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TransactionType {
+  PURCHASE_POWER
+  SWAP_HASH_TO_TON
+  REFERRAL_BONUS
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

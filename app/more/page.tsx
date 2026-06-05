@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TonConnectButton } from "@tonconnect/ui-react";
 
 const menuItems = [
   {
@@ -12,6 +13,7 @@ const menuItems = [
     iconColor: "var(--dm-green)",
     iconBorder: "rgba(0,212,170,0.2)",
     badge: null,
+    isTonConnect: false,
   },
   {
     id: "menu-wallet",
@@ -22,6 +24,7 @@ const menuItems = [
     iconColor: "#3b82f6",
     iconBorder: "rgba(59,130,246,0.2)",
     badge: null,
+    isTonConnect: true,
   },
   {
     id: "menu-history",
@@ -32,6 +35,7 @@ const menuItems = [
     iconColor: "#8b5cf6",
     iconBorder: "rgba(139,92,246,0.2)",
     badge: null,
+    isTonConnect: false,
   },
   {
     id: "menu-invite",
@@ -42,6 +46,7 @@ const menuItems = [
     iconColor: "#f5a623",
     iconBorder: "rgba(245,166,35,0.2)",
     badge: "HOT",
+    isTonConnect: false,
   },
   {
     id: "menu-support",
@@ -52,6 +57,7 @@ const menuItems = [
     iconColor: "#a3a3a3",
     iconBorder: "rgba(255,255,255,0.1)",
     badge: null,
+    isTonConnect: false,
   },
   {
     id: "menu-settings",
@@ -62,14 +68,16 @@ const menuItems = [
     iconColor: "#a3a3a3",
     iconBorder: "rgba(255,255,255,0.1)",
     badge: null,
+    isTonConnect: false,
   },
 ];
 
 export default function MorePage() {
   const [tasksOpen, setTasksOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-full px-4 pt-4" style={{ background: "var(--background)" }}>
+    <div className="flex flex-col min-h-full px-4 pt-4 pb-20" style={{ background: "var(--background)" }}>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -143,6 +151,25 @@ export default function MorePage() {
         </div>
       )}
 
+      {/* Wallet panel */}
+      {walletOpen && (
+        <div
+          className="rounded-2xl mb-4 overflow-hidden p-4"
+          style={{ background: "#161616", border: "1px solid rgba(59,130,246,0.2)" }}
+        >
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-wallet" style={{ color: "#3b82f6", fontSize: "18px" }} />
+              <h3 className="text-base font-bold" style={{ color: "#fff" }}>TON Wallet Connection</h3>
+            </div>
+            <p className="text-xs text-center" style={{ color: "#6b6b6b" }}>
+              Connect your TON wallet to make purchases and receive payments
+            </p>
+            <TonConnectButton />
+          </div>
+        </div>
+      )}
+
       {/* Menu list */}
       <div
         className="rounded-2xl overflow-hidden"
@@ -152,18 +179,26 @@ export default function MorePage() {
           <button
             key={item.id}
             id={item.id}
-            onClick={() => item.label === "Tasks" && setTasksOpen((v) => !v)}
+            onClick={() => {
+              if (item.label === "Tasks") setTasksOpen((v) => !v);
+              if (item.isTonConnect) setWalletOpen((v) => !v);
+            }}
             className="flex items-center gap-4 w-full px-4 py-4 text-left transition-all duration-200"
             style={{
               borderBottom: i < menuItems.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-              background: item.label === "Tasks" && tasksOpen ? "rgba(0,212,170,0.05)" : "transparent",
+              background: 
+                (item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)
+                  ? "rgba(0,212,170,0.05)" 
+                  : "transparent",
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)";
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLElement).style.background =
-                item.label === "Tasks" && tasksOpen ? "rgba(0,212,170,0.05)" : "transparent";
+                (item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)
+                  ? "rgba(0,212,170,0.05)" 
+                  : "transparent";
             }}
           >
             {/* Icon */}
@@ -195,7 +230,9 @@ export default function MorePage() {
                 </span>
               )}
               <i
-                className={`fa-solid fa-chevron-${item.label === "Tasks" && tasksOpen ? "up" : "right"}`}
+                className={`fa-solid fa-chevron-${
+                  ((item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)) ? "up" : "right"
+                }`}
                 style={{ color: "#444", fontSize: "12px" }}
               />
             </div>
