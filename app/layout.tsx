@@ -7,6 +7,7 @@ import { TelegramProvider } from "@/components/TelegramProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { TonConnectProvider } from "@/components/TonConnectProvider";
 import AppWrapper from "@/components/AppWrapper";
+import { CronTrigger } from "@/components/CronTrigger";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
         <TelegramProvider>
           <TonConnectProvider>
             <AuthProvider>
+              <CronTrigger />
               <AppWrapper>{children}</AppWrapper>
             </AuthProvider>
           </TonConnectProvider>
