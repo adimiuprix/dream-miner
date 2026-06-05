@@ -45,16 +45,16 @@ export default function ShopPage() {
       const result = await tonConnectUI.sendTransaction(transaction);
 
       // Transaction sent successfully
-      console.log("Transaction result:", result);
+      console.log("Transaction sent to blockchain:", result);
 
-      // Save to database
+      // Save to database with PENDING status
       const response = await fetch("/api/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
           planId: plan.id,
-          txHash: result.boc, // Transaction hash
+          txHash: result.boc,
           fromAddress: wallet.account.address,
           toAddress: PAYMENT_RECEIVER_ADDRESS,
         }),
@@ -62,12 +62,27 @@ export default function ShopPage() {
 
       const data = await response.json();
 
-      if (data.success) {
-        alert(`Success! You purchased ${plan.power} POWER`);
-        // Optionally reload user data or redirect
+      if (!data.success) {
+        alert("Failed to process purchase: " + data.error);
+        setLoading(null);
+        return;
+      }
+
+      console.log("Transaction saved to database:", data.transaction);
+
+      // Show pending message
+      alert("Transaction sent! Verifying on blockchain...");
+
+      // Start verification polling
+      const transactionId = data.transaction.id;
+      const verified = await pollVerificationStatus(transactionId);
+
+      if (verified) {
+        alert(`Success! You purchased ${plan.power} POWER. Power has been added to your account.`);
+        // Reload to show updated power
         window.location.reload();
       } else {
-        alert("Failed to process purchase: " + data.error);
+        alert("Transaction verification failed or timed out. Please contact support if payment was deducted.");
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
@@ -80,6 +95,55 @@ export default function ShopPage() {
     } finally {
       setLoading(null);
     }
+  };
+
+  /**
+   * Poll verification status until completed or timeout
+   */
+  const pollVerificationStatus = async (
+    transactionId: string,
+    maxAttempts: number = 12, // 12 attempts = 60 seconds
+    intervalMs: number = 5000 // 5 seconds
+  ): Promise<boolean> => {
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        // Trigger verification
+        const verifyResponse = await fetch("/api/verify-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId }),
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        console.log(`Verification attempt ${attempts + 1}:`, verifyData);
+
+        // Check if completed
+        if (verifyData.status === "COMPLETED") {
+          return true;
+        }
+
+        // Check if failed
+        if (verifyData.status === "FAILED") {
+          console.error("Verification failed:", verifyData.message);
+          return false;
+        }
+
+        // Still pending, wait and retry
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        attempts++;
+      } catch (error) {
+        console.error("Polling error:", error);
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    // Timeout
+    console.error("Verification timeout");
+    return false;
   };
 
   return (

@@ -40,13 +40,14 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Create transaction record
+    // Create transaction record with PENDING status
+    // We'll verify on blockchain before marking as COMPLETED
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: "PURCHASE_POWER",
         amount: plan.price,
-        status: txHash ? "COMPLETED" : "PENDING",
+        status: "PENDING", // Always start as PENDING
         txHash: txHash || null,
         fromAddress: fromAddress || null,
         toAddress: toAddress || null,
@@ -57,44 +58,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If transaction has hash (completed), create contract and update user power
-    if (txHash) {
-      // Create contract
-      const contract = await prisma.contract.create({
-        data: {
-          userId,
-          planId: plan.id,
-          power: plan.powerValue,
-          price: plan.price,
-          bonus: plan.bonusValue,
-          status: "ACTIVE",
-          expiresAt,
-        },
-      });
-
-      // Update user's total power
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          power: {
-            increment: totalPower,
-          },
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        transaction,
-        contract,
-        message: "Purchase completed successfully",
-      });
-    }
-
     // Return pending transaction
+    // Client will poll for verification status
     return NextResponse.json({
       success: true,
       transaction,
-      message: "Transaction pending, waiting for payment",
+      message: "Transaction created, pending blockchain verification",
     });
   } catch (error) {
     console.error("Purchase error:", error);
