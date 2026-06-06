@@ -1,18 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/AuthProvider";
 import PageHeader from "@/components/ui/PageHeader";
-import PlanCard from "@/components/PlanCard";
+import PlanCard, { PowerPlan } from "@/components/PlanCard";
 import ShopFooter from "@/components/ShopFooter";
-import { POWER_PLANS, createPaymentTransaction, PAYMENT_RECEIVER_ADDRESS } from "@/lib/tonPayment";
+import { createPaymentTransaction, PAYMENT_RECEIVER_ADDRESS } from "@/lib/tonPayment";
 
 export default function ShopPage() {
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PowerPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+
+  // Fetch plans from database on mount
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        setPlansLoading(true);
+        const response = await fetch("/api/plans");
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Failed to fetch plans");
+        }
+
+        setPlans(data.plans);
+      } catch (err: any) {
+        console.error("Failed to load plans:", err);
+        setPlansError(err.message || "Failed to load plans");
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
 
   const handlePurchase = async (planId: string) => {
     if (!user) {
@@ -20,7 +47,7 @@ export default function ShopPage() {
       return;
     }
 
-    const plan = POWER_PLANS.find((p) => p.id === planId);
+    const plan = plans.find((p) => p.id === planId);
     if (!plan) return;
 
     try {
@@ -38,7 +65,7 @@ export default function ShopPage() {
       const transaction = createPaymentTransaction({
         to: PAYMENT_RECEIVER_ADDRESS,
         amount: plan.price.toString(),
-        payload: `Dream Miner - ${plan.power} POWER`,
+        payload: `Dream Miner - ${plan.name} POWER`,
       });
 
       // Send transaction
@@ -78,7 +105,7 @@ export default function ShopPage() {
       const verified = await pollVerificationStatus(transactionId);
 
       if (verified) {
-        alert(`Success! You purchased ${plan.power} POWER. Power has been added to your account.`);
+        alert(`Success! You purchased ${plan.name} POWER. Power has been added to your account.`);
         // Reload to show updated power
         window.location.reload();
       } else {
@@ -86,7 +113,7 @@ export default function ShopPage() {
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
-      
+
       if (error.message?.includes("cancel")) {
         alert("Transaction cancelled");
       } else {
@@ -148,15 +175,15 @@ export default function ShopPage() {
 
   return (
     <div className="flex flex-col min-h-full px-4 pt-4 pb-20" style={{ background: "var(--background)" }}>
-      <PageHeader 
-        title="Shop" 
-        description="Buy POWER and grow faster." 
-        iconClass="fa-solid fa-cart-shopping" 
+      <PageHeader
+        title="Shop"
+        description="Buy POWER and grow faster."
+        iconClass="fa-solid fa-cart-shopping"
       />
 
       {/* Wallet Connection Status */}
       {!wallet && (
-        <div 
+        <div
           className="mb-4 p-3 rounded-xl flex items-center gap-2"
           style={{
             background: "rgba(245, 166, 35, 0.1)",
@@ -171,7 +198,7 @@ export default function ShopPage() {
       )}
 
       {wallet && (
-        <div 
+        <div
           className="mb-4 p-3 rounded-xl flex items-center gap-2"
           style={{
             background: "rgba(0, 212, 170, 0.1)",
@@ -201,16 +228,55 @@ export default function ShopPage() {
       </div>
 
       {/* Plans list */}
-      <div className="flex flex-col gap-3">
-        {POWER_PLANS.map((plan) => (
-          <PlanCard 
-            key={plan.id} 
-            plan={plan} 
-            onPurchase={handlePurchase}
-            loading={loading === plan.id}
-          />
-        ))}
-      </div>
+      {plansLoading && (
+        <div className="flex flex-col gap-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              className="w-full rounded-2xl px-4 py-4 animate-pulse"
+              style={{
+                background: "#161616",
+                border: "1px solid rgba(255,255,255,0.06)",
+                height: 72,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {plansError && !plansLoading && (
+        <div
+          className="p-4 rounded-xl text-center"
+          style={{
+            background: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            color: "#ef4444",
+            fontSize: "13px",
+          }}
+        >
+          <i className="fa-solid fa-circle-exclamation mb-2 text-lg" />
+          <p>{plansError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 underline text-xs"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!plansLoading && !plansError && (
+        <div className="flex flex-col gap-3">
+          {plans.map((plan) => (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              onPurchase={handlePurchase}
+              loading={loading === plan.id}
+            />
+          ))}
+        </div>
+      )}
 
       <ShopFooter />
     </div>

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { POWER_PLANS } from "@/lib/tonPayment";
 
 /**
  * POST /api/purchase
@@ -18,10 +17,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the plan
-    const plan = POWER_PLANS.find((p) => p.id === planId);
-    if (!plan) {
-      return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+    // Find the plan from database
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isActive) {
+      return NextResponse.json(
+        { error: "Invalid or inactive plan" },
+        { status: 400 }
+      );
     }
 
     // Check if user exists
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total power (base + bonus)
-    const totalPower = plan.powerValue + plan.bonusValue;
+    const totalPower = plan.power + plan.bonus;
 
     // Calculate expiry date (30 days from now)
     const expiresAt = new Date();
@@ -115,21 +120,24 @@ export async function PUT(request: NextRequest) {
     if (status === "COMPLETED" || !status) {
       const metadata = JSON.parse(transaction.metadata || "{}");
       const planId = metadata.planId;
-      const plan = POWER_PLANS.find((p) => p.id === planId);
+
+      // Fetch plan from database
+      const plan = planId
+        ? await prisma.plan.findUnique({ where: { id: planId } })
+        : null;
 
       if (plan) {
-        const totalPower = plan.powerValue + plan.bonusValue;
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
+        expiresAt.setDate(expiresAt.getDate() + (plan.duration || 30));
 
         // Create contract
         const contract = await prisma.contract.create({
           data: {
             userId: transaction.userId,
             planId: plan.id,
-            power: plan.powerValue,
+            power: plan.power,
             price: plan.price,
-            bonus: plan.bonusValue,
+            bonus: plan.bonus,
             status: "ACTIVE",
             expiresAt,
           },

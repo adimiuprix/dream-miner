@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "npx prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "npx prisma migrate reset && tsx prisma/seed.ts"
   },
   "dependencies": {
     "@ark-ui/react": "^5.37.0",

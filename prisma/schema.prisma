@@ -45,7 +45,9 @@ model Contract {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  planId    String   // e.g., "plan-118k"
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  
   power     Float    // Total power from this contract
   price     Float    // Price paid in TON
   bonus     Float    @default(0) // Bonus power received
@@ -57,8 +59,38 @@ model Contract {
   updatedAt DateTime @updatedAt
   
   @@index([userId])
+  @@index([planId])
   @@index([status])
   @@index([expiresAt])
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   // Display name: "118K", "600K", etc.
+  slug        String   @unique // URL-friendly: "plan-118k", "plan-600k"
+  
+  power       Float    // Base power value: 118000, 600000, etc.
+  bonus       Float    @default(0) // Bonus power value
+  bonusPercent Float   @default(0) // Bonus percentage for display
+  
+  price       Float    // Price in TON
+  duration    Int      @default(30) // Duration in days (default 30)
+  
+  description  String?  // Optional description
+  finalReturn  String?  // Display text: "1.100 TON", "5.610 TON", etc.
+  badge        String?  // Badge text: "+11.8K POWER"
+  badgeColor   String?  // Badge color: "#00d4aa"
+  
+  order       Int      @default(0) // Display order
+  isActive    Boolean  @default(true) // Show in shop
+  
+  contracts   Contract[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([isActive, order])
+  @@index([slug])
 }
 
 model Transaction {

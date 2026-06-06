@@ -1,10 +1,17 @@
 export interface PowerPlan {
   id: string;
-  power: string;
-  finalReturn: string;
+  name: string;         // "118K", "600K", etc.
+  slug: string;
+  power: number;        // 118000, 600000, etc.
+  bonus: number;        // bonus power value
+  bonusPercent: number;
   price: number;
-  bonus: string | null;
-  bonusColor: string | null;
+  duration: number;
+  description: string | null;
+  finalReturn: string | null; // "1.100 TON", etc.
+  badge: string | null;       // "+60K POWER", etc.
+  badgeColor: string | null;
+  order: number;
 }
 
 interface PlanCardProps {
@@ -22,7 +29,7 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
 
   return (
     <button
-      id={plan.id}
+      id={plan.slug}
       onClick={handleClick}
       disabled={loading}
       className="flex items-center justify-between w-full rounded-2xl px-4 py-4 text-left transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -43,7 +50,7 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
       <div>
         <div className="flex items-baseline gap-1">
           <span className="text-xl font-extrabold" style={{ color: "#fff" }}>
-            {plan.power}
+            {plan.name}
           </span>
           <span
             className="text-xs font-bold tracking-widest"
@@ -52,12 +59,14 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
             POWER
           </span>
         </div>
-        <div className="flex items-center gap-1.5 mt-1">
-          <i className="fa-regular fa-clock" style={{ color: "#555", fontSize: "11px" }} />
-          <span className="text-xs" style={{ color: "#6b6b6b" }}>
-            Final return: {plan.finalReturn}
-          </span>
-        </div>
+        {plan.finalReturn && (
+          <div className="flex items-center gap-1.5 mt-1">
+            <i className="fa-regular fa-clock" style={{ color: "#555", fontSize: "11px" }} />
+            <span className="text-xs" style={{ color: "#6b6b6b" }}>
+              Final return: {plan.finalReturn}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Right: bonus + price */}
@@ -68,16 +77,16 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
             style={{ borderColor: "var(--dm-green)", borderTopColor: "transparent" }}
           />
         )}
-        {plan.bonus && (
+        {plan.badge && (
           <span
             className="text-xs font-bold px-2 py-1 rounded-lg"
             style={{
-              background: plan.bonusColor + "22",
-              color: plan.bonusColor!,
-              border: `1px solid ${plan.bonusColor}44`,
+              background: plan.badgeColor + "22",
+              color: plan.badgeColor!,
+              border: `1px solid ${plan.badgeColor}44`,
             }}
           >
-            {plan.bonus}
+            {plan.badge}
           </span>
         )}
         <div
