@@ -19,9 +19,9 @@ model User {
   languageCode String?
 
   // Mining stats
-  power        Float    @default(0) // Total power for mining
   hashes       Float    @default(0) // Accumulated mined currency
   tonBalance   Float    @default(0) // Converted TON balance
+  // Note: power is calculated from active contracts, not stored
 
   // Referral System
   referralCode String   @unique @default(cuid()) // Unique code for sharing

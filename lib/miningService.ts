@@ -96,7 +96,6 @@ export async function syncMiningProgress(userId: string): Promise<MiningStats | 
         hashes: {
           increment: stats.offlineHashes,
         },
-        power: stats.totalPower, // Update current power
         lastPingAt: new Date(),
       },
     });
@@ -134,4 +133,83 @@ export function calculateFutureHashes(
   seconds: number
 ): number {
   return currentHashes + miningRate * seconds;
+}
+
+/**
+ * Get user's total active power from all active contracts
+ * Utility function for quick power calculation without full stats
+ */
+export async function getUserActivePower(userId: string): Promise<number> {
+  try {
+    const contracts = await prisma.contract.findMany({
+      where: {
+        userId,
+        status: "ACTIVE",
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    const totalPower = contracts.reduce(
+      (sum, contract) => sum + contract.power + contract.bonus,
+      0
+    );
+
+    return totalPower;
+  } catch (error) {
+    console.error("[MiningService] Get active power error:", error);
+    return 0;
+  }
+}
+
+/**
+ * Mark expired contracts and return affected user IDs
+ * Should be called periodically by cron job
+ */
+export async function markExpiredContracts(): Promise<string[]> {
+  try {
+    // Find contracts that are ACTIVE but already expired
+    const expiredContracts = await prisma.contract.findMany({
+      where: {
+        status: "ACTIVE",
+        expiresAt: {
+          lte: new Date(),
+        },
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (expiredContracts.length === 0) {
+      return [];
+    }
+
+    // Update all expired contracts to EXPIRED status
+    await prisma.contract.updateMany({
+      where: {
+        id: {
+          in: expiredContracts.map((c) => c.id),
+        },
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+
+    // Get unique user IDs affected
+    const affectedUserIds = [...new Set(expiredContracts.map((c) => c.userId))];
+
+    console.log(
+      `[MiningService] Marked ${expiredContracts.length} contracts as EXPIRED. ` +
+      `Affected users: ${affectedUserIds.length}`
+    );
+
+    return affectedUserIds;
+  } catch (error) {
+    console.error("[MiningService] Mark expired contracts error:", error);
+    return [];
+  }
 }

@@ -135,21 +135,14 @@ export async function PUT(request: NextRequest) {
           },
         });
 
-        // Update user's total power
-        await prisma.user.update({
-          where: { id: transaction.userId },
-          data: {
-            power: {
-              increment: totalPower,
-            },
-          },
-        });
+        // Note: User.power field removed - power is calculated from active contracts
+        // No need to update user power manually
 
         return NextResponse.json({
           success: true,
           transaction: updatedTransaction,
           contract,
-          message: "Purchase completed and power added",
+          message: "Purchase completed and contract activated",
         });
       }
     }

@@ -78,73 +78,27 @@ async function expireContracts(): Promise<void> {
     const now = new Date();
 
     // Find all active contracts that should be expired
-    const expiredContracts = await prisma.contract.findMany({
+    const result = await prisma.contract.updateMany({
       where: {
         status: "ACTIVE",
         expiresAt: {
           lt: now,
         },
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            power: true,
-          },
-        },
+      data: {
+        status: "EXPIRED",
       },
     });
 
-    if (expiredContracts.length === 0) {
+    if (result.count === 0) {
       console.log("[LazyCron] No contracts to expire");
       return;
     }
 
-    console.log(`[LazyCron] Expiring ${expiredContracts.length} contracts...`);
-
-    // Process each expired contract
-    for (const contract of expiredContracts) {
-      try {
-        // Calculate power to remove (base + bonus)
-        const powerToRemove = contract.power + contract.bonus;
-
-        // Use transaction to ensure atomicity
-        await prisma.$transaction(async (tx) => {
-          // 1. Update contract status to EXPIRED
-          await tx.contract.update({
-            where: { id: contract.id },
-            data: {
-              status: "EXPIRED",
-            },
-          });
-
-          // 2. Remove power from user
-          // Make sure power doesn't go negative
-          const currentPower = contract.user.power;
-          const newPower = Math.max(0, currentPower - powerToRemove);
-
-          await tx.user.update({
-            where: { id: contract.userId },
-            data: {
-              power: newPower,
-            },
-          });
-
-          console.log(
-            `[LazyCron] Expired contract ${contract.id} for user ${contract.userId}. ` +
-            `Removed ${powerToRemove} power (${currentPower} → ${newPower})`
-          );
-        });
-      } catch (error) {
-        console.error(
-          `[LazyCron] Error expiring contract ${contract.id}:`,
-          error
-        );
-        // Continue with other contracts even if one fails
-      }
-    }
-
-    console.log(`[LazyCron] Successfully expired ${expiredContracts.length} contracts`);
+    console.log(`[LazyCron] Successfully expired ${result.count} contracts`);
+    
+    // Note: User.power field removed - power is calculated dynamically from active contracts
+    // No need to update user power when contracts expire
   } catch (error) {
     console.error("[LazyCron] Error in expireContracts:", error);
   }
