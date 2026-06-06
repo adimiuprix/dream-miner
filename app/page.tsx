@@ -1,15 +1,15 @@
 "use client";
 
 import MiningRing from "@/components/MiningRing";
-import TopBar from "@/components/home/TopBar";
+import TopBar from "@/components/TopBar";
 import dynamic from "next/dynamic";
 
-const HashCounter = dynamic(() => import("@/components/home/HashCounter"), { ssr: false });
+const HashCounter = dynamic(() => import("@/components/HashCounter"), { ssr: false });
 
-import StatsBar from "@/components/home/StatsBar";
-import ContractSection from "@/components/home/ContractSection";
-import SwapCard from "@/components/home/SwapCard";
-import QuickActions from "@/components/home/QuickActions";
+import StatsBar from "@/components/StatsBar";
+import ContractSection from "@/components/ContractSection";
+import SwapCard from "@/components/SwapCard";
+import QuickActions from "@/components/QuickActions";
 
 export default function HomePage() {
   return (
