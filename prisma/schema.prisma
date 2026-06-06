@@ -37,6 +37,7 @@ model User {
   // Relationships
   contracts    Contract[]
   transactions Transaction[]
+  swaps        Swap[]
 }
 
 model Contract {
@@ -86,6 +87,31 @@ model Transaction {
   @@index([txHash])
 }
 
+model Swap {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  hashesSwapped   Float    // Amount of HASHES swapped
+  tonReceived     Float    // Amount of TON received
+  exchangeRate    Float    // Exchange rate at the time of swap
+  
+  // Balance snapshot
+  hashesBalanceBefore Float // HASHES balance before swap
+  hashesBalanceAfter  Float // HASHES balance after swap (should be 0)
+  tonBalanceBefore    Float // TON balance before swap
+  tonBalanceAfter     Float // TON balance after swap
+  
+  status          SwapStatus @default(COMPLETED)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 enum ContractStatus {
   ACTIVE
   EXPIRED
@@ -94,13 +120,18 @@ enum ContractStatus {
 
 enum TransactionType {
   PURCHASE_POWER
-  SWAP_HASH_TO_TON
   REFERRAL_BONUS
   WITHDRAWAL
 }
 
 enum TransactionStatus {
   PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SwapStatus {
   COMPLETED
   FAILED
   CANCELLED

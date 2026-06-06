@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
     // Calculate TON amount
     const tonAmount = user.hashes * EXCHANGE_RATE;
     const hashesToSwap = user.hashes;
+    const hashesBalanceBefore = user.hashes;
+    const tonBalanceBefore = user.tonBalance;
 
     // Perform swap in transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -66,23 +68,22 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 2. Record transaction
-      const transaction = await tx.transaction.create({
+      // 2. Record swap in Swap table
+      const swap = await tx.swap.create({
         data: {
           userId,
-          type: "SWAP_HASH_TO_TON",
-          amount: tonAmount,
+          hashesSwapped: hashesToSwap,
+          tonReceived: tonAmount,
+          exchangeRate: EXCHANGE_RATE,
+          hashesBalanceBefore,
+          hashesBalanceAfter: 0,
+          tonBalanceBefore,
+          tonBalanceAfter: updatedUser.tonBalance,
           status: "COMPLETED",
-          metadata: JSON.stringify({
-            hashesSwapped: hashesToSwap,
-            exchangeRate: EXCHANGE_RATE,
-            tonReceived: tonAmount,
-            swappedAt: new Date().toISOString(),
-          }),
         },
       });
 
-      return { updatedUser, transaction };
+      return { updatedUser, swap };
     });
 
     console.log(
@@ -93,11 +94,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       swap: {
+        id: result.swap.id,
         hashesSwapped: hashesToSwap,
         tonReceived: tonAmount,
         exchangeRate: EXCHANGE_RATE,
         newTonBalance: result.updatedUser.tonBalance,
-        transactionId: result.transaction.id,
+        hashesBalanceBefore,
+        tonBalanceBefore,
+        swappedAt: result.swap.createdAt,
       },
     });
   } catch (error) {
