@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Exchange rate configuration
- * 10,000 HASHES = 1 TON
+ * 1,000 HASHES = 0.0144 TON
+ * ~69,444 HASHES = 1 TON
  */
-const EXCHANGE_RATE = 0.0001; // 1 HASH = 0.0001 TON
-const MINIMUM_SWAP_HASHES = 100; // Minimum hashes to swap
+const EXCHANGE_RATE = 0.0000144; // 1 HASH = 0.0000144 TON
+const MINIMUM_SWAP_HASHES = 1000; // Minimum hashes to swap (sesuai mockup)
 
 /**
  * POST /api/swap
