@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransactionByReceiverAddress } from "@/lib/tonWebVerification";
-import { POWER_PLANS } from "@/lib/tonPayment";
 
 /**
  * POST /api/verify-payment
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already processed
+    // Already processed
     if (transaction.status === "COMPLETED") {
       return NextResponse.json({
         success: true,
@@ -48,7 +47,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if we have transaction hash
     if (!transaction.txHash) {
       return NextResponse.json(
         { error: "Transaction hash missing" },
@@ -56,21 +54,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse metadata to get plan info
+    // Get plan from database using planId stored in metadata
     const metadata = JSON.parse(transaction.metadata || "{}");
-    const planId = metadata.planId;
-    const plan = POWER_PLANS.find((p) => p.id === planId);
+    const planId = metadata.planId as string | undefined;
+
+    const plan = planId
+      ? await prisma.plan.findUnique({ where: { id: planId } })
+      : null;
 
     if (!plan) {
       return NextResponse.json(
-        { error: "Invalid plan in transaction" },
+        { error: "Plan not found for this transaction" },
         { status: 400 }
       );
     }
 
     // Verify transaction on blockchain
-    console.log(`Verifying transaction ${transactionId} on blockchain...`);
-    
+    console.log(`[VerifyPayment] Verifying transaction ${transactionId}...`);
+
     const verification = await verifyTransactionByReceiverAddress(
       transaction.toAddress || "",
       transaction.amount,
@@ -78,11 +79,10 @@ export async function POST(request: NextRequest) {
       300 // 5 minute time window
     );
 
-    console.log("Verification result:", verification);
+    console.log("[VerifyPayment] Result:", verification);
 
-    // If verification failed
+    // Verification failed — mark as FAILED
     if (!verification.isValid || !verification.isConfirmed) {
-      // Update transaction status to FAILED
       await prisma.transaction.update({
         where: { id: transactionId },
         data: {
@@ -103,20 +103,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Verification successful! Process the purchase
-    console.log(`Transaction verified successfully. Processing purchase...`);
+    // Verified — process purchase atomically
+    console.log(`[VerifyPayment] Verified. Creating contract for user ${transaction.userId}...`);
 
-    // Calculate total power
-    const totalPower = plan.powerValue + plan.bonusValue;
-
-    // Calculate expiry date (30 days from now)
+    // Use plan.duration to calculate expiry
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + plan.duration);
 
-    // Use a transaction to ensure atomicity
-    const result = await prisma.$transaction(async (prisma) => {
-      // 1. Update transaction status to COMPLETED
-      const updatedTransaction = await prisma.transaction.update({
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Mark transaction as COMPLETED
+      const updatedTransaction = await tx.transaction.update({
         where: { id: transactionId },
         data: {
           status: "COMPLETED",
@@ -129,33 +125,23 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 2. Create contract
-      const contract = await prisma.contract.create({
+      // 2. Create contract — power calculated from active contracts, not stored on user
+      const contract = await tx.contract.create({
         data: {
           userId: transaction.userId,
           planId: plan.id,
-          power: plan.powerValue,
+          power: plan.power,
           price: plan.price,
-          bonus: plan.bonusValue,
+          bonus: plan.bonus,
           status: "ACTIVE",
           expiresAt,
         },
       });
 
-      // 3. Update user's total power
-      const updatedUser = await prisma.user.update({
-        where: { id: transaction.userId },
-        data: {
-          power: {
-            increment: totalPower,
-          },
-        },
-      });
-
-      return { updatedTransaction, contract, updatedUser };
+      return { updatedTransaction, contract };
     });
 
-    console.log(`Purchase completed for user ${transaction.userId}`);
+    console.log(`[VerifyPayment] Purchase completed for user ${transaction.userId}`);
 
     return NextResponse.json({
       success: true,
@@ -163,11 +149,11 @@ export async function POST(request: NextRequest) {
       message: "Transaction verified and purchase completed",
       transaction: result.updatedTransaction,
       contract: result.contract,
-      powerAdded: totalPower,
+      powerAdded: plan.power + plan.bonus,
       verification,
     });
   } catch (error) {
-    console.error("Verify payment error:", error);
+    console.error("[VerifyPayment] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -191,7 +177,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get transaction status
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
       select: {
@@ -216,7 +201,7 @@ export async function GET(request: NextRequest) {
       transaction,
     });
   } catch (error) {
-    console.error("Check status error:", error);
+    console.error("[VerifyPayment] Check status error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
