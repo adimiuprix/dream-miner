@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authenticate = async () => {
       // Use Telegram user data if available, otherwise use dev fallback
       const telegramId = tgUser?.id || 0;
-      const firstName = tgUser?.first_name || "Developer";
+      const firstName = tgUser?.first_name || null;
       const username = tgUser?.username || null;
       const lastName = tgUser?.last_name || null;
       const languageCode = tgUser?.language_code || "en";
