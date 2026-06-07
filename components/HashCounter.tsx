@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { hashesToTon } from "@/lib/exchangeRate";
 import { useMining } from "@/components/MiningProvider";
 
 export default function HashCounter() {
@@ -44,7 +45,7 @@ export default function HashCounter() {
     );
   }
 
-  const estimatedTon = (display * 0.0001).toFixed(8);
+  const estimatedTon = hashesToTon(display).toFixed(8);
   const rate = stats?.miningRate ?? 0;
 
   return (

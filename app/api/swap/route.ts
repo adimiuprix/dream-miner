@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { syncMiningProgress } from "@/lib/miningService";
+import { HASH_TO_TON_RATE, MINIMUM_SWAP_HASHES, hashesToTon } from "@/lib/exchangeRate";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Exchange rate configuration
- * 1,000 HASHES = 0.0144 TON
- * ~69,444 HASHES = 1 TON
+ * Exchange rate configuration — see lib/exchangeRate.ts
+ * 1,000 HASHES = 0.0144 TON  (~69,444 HASHES = 1 TON)
  */
-const EXCHANGE_RATE = 0.0000144; // 1 HASH = 0.0000144 TON
-const MINIMUM_SWAP_HASHES = 1000; // Minimum hashes to swap (sesuai mockup)
 
 /**
  * POST /api/swap
@@ -63,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate TON amount
-    const tonAmount = currentHashes * EXCHANGE_RATE;
+    const tonAmount = hashesToTon(currentHashes);
     const hashesToSwap = currentHashes;
     const hashesBalanceBefore = currentHashes;
     const tonBalanceBefore = user.tonBalance;
@@ -90,7 +88,7 @@ export async function POST(request: NextRequest) {
           userId,
           hashesSwapped: hashesToSwap,
           tonReceived: tonAmount,
-          exchangeRate: EXCHANGE_RATE,
+          exchangeRate: HASH_TO_TON_RATE,
           hashesBalanceBefore,
           hashesBalanceAfter: 0,
           tonBalanceBefore,
@@ -113,7 +111,7 @@ export async function POST(request: NextRequest) {
         id: result.swap.id,
         hashesSwapped: hashesToSwap,
         tonReceived: tonAmount,
-        exchangeRate: EXCHANGE_RATE,
+        exchangeRate: HASH_TO_TON_RATE,
         newTonBalance: result.updatedUser.tonBalance,
         hashesBalanceBefore,
         tonBalanceBefore,
@@ -164,7 +162,7 @@ export async function GET(request: NextRequest) {
     });
 
     const currentHashes = contracts.reduce((sum, c) => sum + c.accumulatedHashes, 0);
-    const tonAmount = currentHashes * EXCHANGE_RATE;
+    const tonAmount = hashesToTon(currentHashes);
     const canSwap = currentHashes >= MINIMUM_SWAP_HASHES;
 
     return NextResponse.json({
@@ -172,7 +170,7 @@ export async function GET(request: NextRequest) {
       preview: {
         currentHashes,
         estimatedTon: tonAmount,
-        exchangeRate: EXCHANGE_RATE,
+        exchangeRate: HASH_TO_TON_RATE,
         minimumRequired: MINIMUM_SWAP_HASHES,
         canSwap,
         currentTonBalance: user.tonBalance,
