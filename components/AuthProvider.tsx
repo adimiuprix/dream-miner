@@ -17,6 +17,7 @@ export interface IAuthUser {
   lastName: string | null;
   hashes: number;
   tonBalance: number;
+  walletAddress: string | null;
   referralCode: string;
   lastPingAt: string;
   createdAt: string;

@@ -29,6 +29,9 @@ model User {
   referredBy   User?    @relation("UserReferrals", fields: [referredById], references: [id])
   referrals    User[]   @relation("UserReferrals")
 
+  // TON Wallet
+  walletAddress String?  // User's TON wallet address for withdrawals
+
   // Activity Tracking
   lastPingAt   DateTime @default(now()) // To check if user is active/mining
   createdAt    DateTime @default(now())

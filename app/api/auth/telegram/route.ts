@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
         where: { telegramId: BigInt(telegramId) },
         data: {
           lastPingAt: new Date(),
-          // Also update profile info in case it changed
-          username: username || existingUser.username,
-          firstName: firstName || existingUser.firstName,
-          lastName: lastName ?? existingUser.lastName,
+          // Use new value from Telegram if provided, otherwise keep existing
+          username: username !== undefined ? username : existingUser.username,
+          firstName: firstName ?? existingUser.firstName,
+          lastName: lastName !== undefined ? lastName : existingUser.lastName,
         },
       });
 
