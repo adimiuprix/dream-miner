@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import MiningRing from "@/components/MiningRing";
 import TopBar from "@/components/TopBar";
 import dynamic from "next/dynamic";
@@ -17,6 +18,7 @@ import { useMining } from "@/components/MiningProvider";
 export default function HomePage() {
   const { user } = useAuth();
   const { refresh } = useMining();
+  const router = useRouter();
   const [claimLoading, setClaimLoading] = useState(false);
 
   async function claimFreePlan() {
@@ -58,9 +60,7 @@ export default function HomePage() {
       label: "Buy POWER",
       icon: "fa-solid fa-bolt",
       variant: "primary",
-      onClick: () => {
-        // TODO: handle buy power
-      },
+      onClick: () => router.push("/shop"),
     },
     {
       id: "free-power-btn",
