@@ -12,12 +12,11 @@ import ContractSection from "@/components/ContractSection";
 import SwapCard from "@/components/SwapCard";
 import QuickActions, { QuickAction } from "@/components/QuickActions";
 import { useAuth } from "@/components/AuthProvider";
-
-// FREE_PLAN_ID — ganti dengan ID plan gratis yang sesuai di database
-const FREE_PLAN_ID = "free";
+import { useMining } from "@/components/MiningProvider";
 
 export default function HomePage() {
   const { user } = useAuth();
+  const { refresh } = useMining();
   const [claimLoading, setClaimLoading] = useState(false);
 
   async function claimFreePlan() {
@@ -31,7 +30,7 @@ export default function HomePage() {
       const res = await fetch("/api/purchase/free", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, planId: FREE_PLAN_ID }),
+        body: JSON.stringify({ userId: user.id }),
       });
 
       const data = await res.json();
@@ -41,7 +40,10 @@ export default function HomePage() {
         return;
       }
 
-      alert(data.message ?? "Free plan berhasil diaktifkan!");
+      // Refresh mining stats secara langsung tanpa reload halaman
+      await refresh();
+
+      alert("Free plan berhasil diaktifkan!");
     } catch (error) {
       console.error("claimFreePlan error:", error);
       alert("Terjadi kesalahan saat mengklaim free plan.");

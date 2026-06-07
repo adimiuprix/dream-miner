@@ -5,6 +5,7 @@ import "./globals.css";
 import "./tonconnect-styles.css";
 import { TelegramProvider } from "@/components/TelegramProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { MiningProvider } from "@/components/MiningProvider";
 import { TonConnectProvider } from "@/components/TonConnectProvider";
 import AppWrapper from "@/components/AppWrapper";
 import { CronTrigger } from "@/components/CronTrigger";
@@ -46,8 +47,10 @@ export default function RootLayout({
         <TelegramProvider>
           <TonConnectProvider>
             <AuthProvider>
-              <CronTrigger />
-              <AppWrapper>{children}</AppWrapper>
+              <MiningProvider>
+                <CronTrigger />
+                <AppWrapper>{children}</AppWrapper>
+              </MiningProvider>
             </AuthProvider>
           </TonConnectProvider>
         </TelegramProvider>
