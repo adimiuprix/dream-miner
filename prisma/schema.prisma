@@ -52,13 +52,12 @@ model Contract {
   price     Float    // Price paid in TON
   bonus     Float    @default(0) // Bonus power received
   
+  accumulatedHashes Float    @default(0)
+  lastSyncAt        DateTime @default(now())
+
   status    ContractStatus @default(ACTIVE)
   expiresAt DateTime // When this contract expires
 
-  // Lazy accumulation
-  accumulatedHashes Float    @default(0) // Hashes accumulated so far in this contract
-  lastSyncAt        DateTime @default(now()) // Last time accumulatedHashes was updated
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
