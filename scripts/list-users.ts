@@ -41,7 +41,12 @@ async function listUsers() {
     console.log(`   ID: ${user.id}`);
     console.log(`   Telegram ID: ${user.telegramId}`);
     console.log(`   Username: @${user.username || "no username"}`);
-    console.log(`   Power: ${user.power.toLocaleString()}`);
+    // Power is calculated from active contracts
+    const activePower = user.contracts.reduce(
+      (sum, c) => sum + c.power + c.bonus,
+      0
+    );
+    console.log(`   Power: ${activePower.toLocaleString()} (from ${user.contracts.length} active contract(s))`);
     console.log(`   Hashes: ${user.hashes.toFixed(8)}`);
     console.log(`   TON Balance: ${user.tonBalance.toFixed(4)}`);
     console.log(`   Active Contracts: ${user.contracts.length}`);
@@ -50,8 +55,8 @@ async function listUsers() {
     console.log(`   Joined: ${user.createdAt.toLocaleDateString()}`);
     
     // Calculate mining rate
-    if (user.power > 0) {
-      const miningRate = (user.power / 100000 * 86400).toFixed(0);
+    if (activePower > 0) {
+      const miningRate = (activePower / 100000 * 86400).toFixed(0);
       console.log(`   Mining Rate: ${miningRate} H/day`);
     }
     

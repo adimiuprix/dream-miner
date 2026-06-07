@@ -48,6 +48,33 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Give new user the free plan as an expired contract
+    const freePlan = await prisma.plan.findFirst({
+      where: { isFree: true, isActive: true },
+      orderBy: { order: "asc" },
+    });
+
+    if (freePlan) {
+      const expiredAt = new Date(); // already expired (now = past)
+      expiredAt.setSeconds(expiredAt.getSeconds() - 1);
+
+      await prisma.contract.create({
+        data: {
+          userId: newUser.id,
+          planId: freePlan.id,
+          power: freePlan.power,
+          price: 0,
+          bonus: freePlan.bonus,
+          status: "EXPIRED",
+          expiresAt: expiredAt,
+        },
+      });
+
+      console.log(
+        `[Auth] New user ${newUser.id} — added expired free plan "${freePlan.name}"`
+      );
+    }
+
     return NextResponse.json({
       user: serializeUser(newUser),
       isNewUser: true,

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const plans = await prisma.plan.findMany({
       where: {
         isActive: true,
+        isFree: false,
       },
       orderBy: {
         order: "asc",

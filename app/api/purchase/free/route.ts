@@ -4,10 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * POST /api/purchase/free
  * Claim a free plan — no payment required.
+ *
  * Rules:
- *  - Plan must be marked isFree = true
- *  - User can only claim the same free plan once at a time
- *    (no active contract of the same planId)
+ *  - Plan must be isFree = true and isActive = true
+ *  - User cannot claim while an active (non-expired) contract exists
+ *  - User CAN reclaim after the previous one expires
+ *    (new users receive one as EXPIRED on registration, so they can claim immediately)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,8 +54,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already has an active contract for this plan
-    const existing = await prisma.contract.findFirst({
+    // Block if user already has an ACTIVE (not yet expired) contract for this plan
+    const activeContract = await prisma.contract.findFirst({
       where: {
         userId,
         planId,
@@ -62,9 +64,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (existing) {
+    if (activeContract) {
       const daysLeft = Math.ceil(
-        (existing.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        (activeContract.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       );
       return NextResponse.json(
         {
@@ -74,11 +76,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate expiry using plan's duration
+    // All clear — create a new active contract
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + plan.duration);
 
-    // Create contract directly (no transaction needed)
     const contract = await prisma.contract.create({
       data: {
         userId,
@@ -92,14 +93,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(
-      `[FreePlan] User ${userId} claimed free plan "${plan.name}" — ` +
+      `[FreePlan] User ${userId} claimed "${plan.name}" — ` +
       `power: ${plan.power + plan.bonus}, expires: ${expiresAt.toISOString()}`
     );
 
     return NextResponse.json({
       success: true,
       contract,
-      message: `Free plan activated for ${plan.duration} days`,
+      message: `Free plan activated for ${plan.duration} day${plan.duration !== 1 ? "s" : ""}`,
     });
   } catch (error) {
     console.error("Free plan claim error:", error);

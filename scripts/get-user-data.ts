@@ -73,11 +73,16 @@ async function getUserData(userId) {
         console.log(`\n${index + 1}. ${user.firstName} ${user.lastName || ''} (@${user.username || 'no username'})`);
         console.log(`   ID: ${user.id}`);
         console.log(`   Telegram: ${user.telegramId}`);
-        console.log(`   Power: ${user.power.toLocaleString()} | Hashes: ${user.hashes.toFixed(2)} | TON: ${user.tonBalance.toFixed(4)}`);
+        // Power calculated from active contracts
+        const activePower = user.contracts.reduce(
+          (sum: number, c: { power: number; bonus: number }) => sum + c.power + c.bonus,
+          0
+        );
+        console.log(`   Power: ${activePower.toLocaleString()} | Hashes: ${user.hashes.toFixed(2)} | TON: ${user.tonBalance.toFixed(4)}`);
         console.log(`   Contracts: ${user._count.contracts} | Transactions: ${user._count.transactions} | Referrals: ${user._count.referrals}`);
         
-        if (user.power > 0) {
-          const rate = (user.power / 100000 * 86400).toFixed(0);
+        if (activePower > 0) {
+          const rate = (activePower / 100000 * 86400).toFixed(0);
           console.log(`   Mining: ${rate} H/day`);
         }
         
@@ -111,12 +116,16 @@ function printUserDetail(user) {
   console.log(`   Referred By: ${user.referredById || 'None'}`);
   
   console.log('\n⚡ Mining Stats:');
-  console.log(`   Power: ${user.power.toLocaleString()}`);
+  // Power calculated from active contracts
+  const activePower = (user.contracts || [])
+    .filter((c: { status: string }) => c.status === 'ACTIVE')
+    .reduce((sum: number, c: { power: number; bonus: number }) => sum + c.power + c.bonus, 0);
+  console.log(`   Power: ${activePower.toLocaleString()} (from active contracts)`);
   console.log(`   Hashes: ${user.hashes.toFixed(8)}`);
   console.log(`   TON Balance: ${user.tonBalance.toFixed(4)}`);
   
-  if (user.power > 0) {
-    const ratePerSec = user.power / 100000;
+  if (activePower > 0) {
+    const ratePerSec = activePower / 100000;
     const ratePerDay = ratePerSec * 86400;
     const ratePerMonth = ratePerDay * 30;
     console.log(`   Mining Rate: ${ratePerSec.toFixed(2)} H/s`);

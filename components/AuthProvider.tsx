@@ -15,7 +15,6 @@ export interface IAuthUser {
   username: string | null;
   firstName: string;
   lastName: string | null;
-  power: number;
   hashes: number;
   tonBalance: number;
   referralCode: string;
