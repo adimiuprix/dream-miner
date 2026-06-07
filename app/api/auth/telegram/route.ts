@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { telegramId, username, firstName, lastName, languageCode } = body;
+    const { telegramId, username, firstName, lastName, languageCode, referralCode } = body;
 
     if (!telegramId || !firstName) {
       return NextResponse.json(
@@ -37,6 +37,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // New user — resolve referrer if referralCode provided
+    let referredById: string | null = null;
+    if (referralCode) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode },
+        select: { id: true },
+      });
+      if (referrer) {
+        referredById = referrer.id;
+      } else {
+        console.warn(`[Auth] referralCode "${referralCode}" not found, ignoring.`);
+      }
+    }
+
     // New user — create in database
     const newUser = await prisma.user.create({
       data: {
@@ -45,6 +59,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName: lastName || null,
         languageCode: languageCode || null,
+        referredById,
       },
     });
 

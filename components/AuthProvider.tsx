@@ -37,7 +37,7 @@ const AuthContext = createContext<IAuthContext>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: tgUser } = useTelegram();
+  const { user: tgUser, startParam } = useTelegram();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<IAuthUser | null>(null);
 
@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             username,
             lastName,
             languageCode,
+            referralCode: startParam ?? null,
           }),
         });
 

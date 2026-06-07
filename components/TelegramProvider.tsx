@@ -14,12 +14,14 @@ export interface ITelegramUser {
 export interface ITelegramContext {
   webApp: typeof WebApp | null;
   user: ITelegramUser | null;
+  startParam: string | null;
   isReady: boolean;
 }
 
 export const TelegramContext = createContext<ITelegramContext>({
   webApp: null,
   user: null,
+  startParam: null,
   isReady: false,
 });
 
@@ -49,6 +51,7 @@ export const TelegramProvider = ({ children }: { children: ReactNode }) => {
       value={{
         webApp,
         user: webApp ? (webApp.initDataUnsafe.user as ITelegramUser) : null,
+        startParam: webApp?.initDataUnsafe?.start_param ?? null,
         isReady,
       }}
     >
