@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
-import TopPodium from "@/components/trophy/TopPodium";
-import LeaderboardItem from "@/components/trophy/LeaderboardItem";
+import TopPodium from "@/components/TopPodium";
+import LeaderboardItem from "@/components/LeaderboardItem";
 import type { LeaderboardEntry } from "@/app/api/leaderboard/route";
 
 // Palette untuk avatar di rank 4+
