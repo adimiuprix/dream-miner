@@ -30,9 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Update status menjadi ACTIVE
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +1 hari dari sekarang
+
     const updated = await prisma.contract.update({
       where: { id: contract.id },
-      data: { status: "ACTIVE" },
+      data: { status: "ACTIVE", expiresAt },
     });
 
     console.log(`[FreePlan] Contract ${contract.id} user ${userId} → ACTIVE`);
