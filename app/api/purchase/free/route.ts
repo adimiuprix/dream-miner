@@ -1,16 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * POST /api/purchase/free
- * Claim a free plan — no payment required.
- *
- * Rules:
- *  - Plan must be isFree = true and isActive = true
- *  - User cannot claim while an active (non-expired) contract exists
- *  - User CAN reclaim after the previous one expires
- *    (new users receive one as EXPIRED on registration, so they can claim immediately)
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

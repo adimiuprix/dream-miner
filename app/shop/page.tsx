@@ -53,26 +53,6 @@ export default function ShopPage() {
     try {
       setLoading(planId);
 
-      // ── FREE PLAN: no wallet, no blockchain ──────────────────────
-      if (plan.isFree) {
-        const response = await fetch("/api/purchase/free", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id, planId: plan.id }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-          alert(data.error || "Failed to claim free plan");
-          return;
-        }
-
-        alert(`🎉 Free plan activated! ${plan.name} POWER for ${plan.duration} days.`);
-        window.location.reload();
-        return;
-      }
-
       // ── PAID PLAN: require wallet ─────────────────────────────────
       if (!wallet) {
         await tonConnectUI.openModal();
