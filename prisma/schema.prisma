@@ -49,7 +49,6 @@ model Contract {
   plan      Plan     @relation(fields: [planId], references: [id])
   
   power     Float    // Total power from this contract
-  price     Float    // Price paid in TON
   bonus     Float    @default(0) // Bonus power received
   
   accumulatedHashes Float    @default(0)
