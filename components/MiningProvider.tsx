@@ -4,24 +4,24 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
-  useState,
   useCallback,
+  useState,
   ReactNode,
 } from "react";
 import { useAuth } from "@/components/AuthProvider";
 
 export interface MiningStats {
   totalPower: number;
-  miningRate: number;   // hashes per second
-  currentHashes: number;
-  offlineHashes: number;
+  miningRate: number;     // hashes per second
+  currentHashes: number;  // total accumulated tersimpan di DB
+  pendingHashes: number;  // hashes sejak lastSyncAt (belum di-flush)
+  lastSyncAt: string;     // ISO string, baseline untuk animasi client
 }
 
 interface MiningContextValue {
   stats: MiningStats | null;
   isLoading: boolean;
-  /** Paksa re-fetch stats dari server sekarang */
+  /** Paksa sync ke DB lalu perbarui stats */
   refresh: () => Promise<void>;
 }
 
@@ -36,7 +36,8 @@ export function MiningProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState<MiningStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchStats = useCallback(async () => {
+  /** Sync ke DB (POST) — flush accumulatedHashes lalu baca stats terbaru */
+  const refresh = useCallback(async () => {
     if (!user?.id) return;
     try {
       const res = await fetch("/api/mining/sync", {
@@ -45,26 +46,24 @@ export function MiningProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ userId: user.id }),
       });
       const data = await res.json();
-      if (data.success) {
-        setStats(data.stats);
-      }
+      if (data.success) setStats(data.stats);
     } catch (err) {
-      console.error("[MiningProvider] fetch error:", err);
+      console.error("[MiningProvider] refresh error:", err);
     } finally {
       setIsLoading(false);
     }
   }, [user?.id]);
 
-  // Fetch on mount and every 30 seconds
+  // Sync pertama saat mount, lalu setiap 10 detik
   useEffect(() => {
     if (!user?.id) return;
-    fetchStats();
-    const interval = setInterval(fetchStats, 30_000);
+    refresh();
+    const interval = setInterval(refresh, 10_000);
     return () => clearInterval(interval);
-  }, [user?.id, fetchStats]);
+  }, [user?.id, refresh]);
 
   return (
-    <MiningContext.Provider value={{ stats, isLoading, refresh: fetchStats }}>
+    <MiningContext.Provider value={{ stats, isLoading, refresh }}>
       {children}
     </MiningContext.Provider>
   );

@@ -3,28 +3,20 @@ import { syncMiningProgress, getMiningStatus } from "@/lib/miningService";
 
 /**
  * POST /api/mining/sync
- * Sync mining progress and get updated stats
+ * Flush accumulatedHashes ke DB lalu kembalikan stats terbaru.
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId } = body;
+    const { userId } = await request.json();
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // Sync mining progress
     const stats = await syncMiningProgress(userId);
 
     if (!stats) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -33,41 +25,32 @@ export async function POST(request: NextRequest) {
         totalPower: stats.totalPower,
         miningRate: stats.miningRate,
         currentHashes: stats.currentHashes,
-        offlineHashes: stats.offlineHashes,
+        pendingHashes: stats.pendingHashes,
+        lastSyncAt: stats.lastSyncAt.toISOString(),
       },
     });
   } catch (error) {
     console.error("Mining sync error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 /**
  * GET /api/mining/sync?userId=xxx
- * Get mining status without syncing (read-only)
+ * Read-only — tidak menulis ke DB.
  */
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("userId");
+    const userId = request.nextUrl.searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
     const stats = await getMiningStatus(userId);
 
     if (!stats) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -76,14 +59,12 @@ export async function GET(request: NextRequest) {
         totalPower: stats.totalPower,
         miningRate: stats.miningRate,
         currentHashes: stats.currentHashes,
-        offlineHashes: stats.offlineHashes,
+        pendingHashes: stats.pendingHashes,
+        lastSyncAt: stats.lastSyncAt.toISOString(),
       },
     });
   } catch (error) {
     console.error("Mining status error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

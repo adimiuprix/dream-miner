@@ -5,34 +5,32 @@ import { useMining } from "@/components/MiningProvider";
 
 export default function HashCounter() {
   const { stats, isLoading } = useMining();
-  const [balance, setBalance] = useState(0);
-  const requestRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-  const initialBalanceRef = useRef<number>(0);
+  const [display, setDisplay] = useState(0);
+  const rafRef = useRef<number | null>(null);
 
-  // Setiap kali stats diperbarui (termasuk setelah refresh), reset baseline counter
+  // Setiap kali stats diperbarui dari server, reset baseline animasi
   useEffect(() => {
     if (!stats) return;
-    initialBalanceRef.current = stats.currentHashes;
-    startTimeRef.current = Date.now();
-    setBalance(stats.currentHashes);
-  }, [stats]);
 
-  // Animasi real-time berdasarkan miningRate dari context
-  useEffect(() => {
-    if (!stats || stats.miningRate === 0) return;
+    // Baseline = hashes tersimpan di DB + hashes pending sejak lastSyncAt
+    const base = stats.currentHashes + stats.pendingHashes;
+    const syncedAt = new Date(stats.lastSyncAt).getTime();
+    const rate = stats.miningRate;
+
+    // Batalkan frame sebelumnya
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     const animate = () => {
-      const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      setBalance(initialBalanceRef.current + elapsed * stats.miningRate);
-      requestRef.current = requestAnimationFrame(animate);
+      const elapsed = (Date.now() - syncedAt) / 1000;
+      setDisplay(base + elapsed * rate);
+      rafRef.current = requestAnimationFrame(animate);
     };
 
-    requestRef.current = requestAnimationFrame(animate);
+    rafRef.current = requestAnimationFrame(animate);
     return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [stats?.miningRate]);
+  }, [stats]);
 
   if (isLoading) {
     return (
@@ -46,7 +44,7 @@ export default function HashCounter() {
     );
   }
 
-  const estimatedTon = (balance * 0.0001).toFixed(8);
+  const estimatedTon = (display * 0.0001).toFixed(8);
   const rate = stats?.miningRate ?? 0;
 
   return (
@@ -63,7 +61,7 @@ export default function HashCounter() {
           animation: "dm-counter-glow 3s ease-in-out infinite",
         }}
       >
-        {balance.toFixed(8)}
+        {display.toFixed(8)}
       </p>
       <p style={{ fontSize: "13px", color: "#666", marginTop: 4 }}>HASHES mined</p>
       <p style={{ fontSize: "11px", color: "#3a3a3a" }}>

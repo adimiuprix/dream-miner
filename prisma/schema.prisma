@@ -54,6 +54,10 @@ model Contract {
   
   status    ContractStatus @default(ACTIVE)
   expiresAt DateTime // When this contract expires
+
+  // Lazy accumulation
+  accumulatedHashes Float    @default(0) // Hashes accumulated so far in this contract
+  lastSyncAt        DateTime @default(now()) // Last time accumulatedHashes was updated
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
