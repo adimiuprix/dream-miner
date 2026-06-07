@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncMiningProgress } from "@/lib/miningService";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -25,9 +26,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user
+    // Sync & flush semua contract aktif dulu agar accumulatedHashes up-to-date
+    const miningStats = await syncMiningProgress(userId);
+
+    if (!miningStats) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    const currentHashes = miningStats.currentHashes;
+
+    // Check minimum hashes
+    if (currentHashes < MINIMUM_SWAP_HASHES) {
+      return NextResponse.json(
+        {
+          error: `Insufficient hashes. Minimum ${MINIMUM_SWAP_HASHES} HASHES required.`,
+          currentHashes,
+          minimumRequired: MINIMUM_SWAP_HASHES,
+        },
+        { status: 400 }
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
+      select: { id: true, tonBalance: true },
     });
 
     if (!user) {
@@ -37,38 +62,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check minimum hashes
-    if (user.hashes < MINIMUM_SWAP_HASHES) {
-      return NextResponse.json(
-        {
-          error: `Insufficient hashes. Minimum ${MINIMUM_SWAP_HASHES} HASHES required.`,
-          currentHashes: user.hashes,
-          minimumRequired: MINIMUM_SWAP_HASHES,
-        },
-        { status: 400 }
-      );
-    }
-
     // Calculate TON amount
-    const tonAmount = user.hashes * EXCHANGE_RATE;
-    const hashesToSwap = user.hashes;
-    const hashesBalanceBefore = user.hashes;
+    const tonAmount = currentHashes * EXCHANGE_RATE;
+    const hashesToSwap = currentHashes;
+    const hashesBalanceBefore = currentHashes;
     const tonBalanceBefore = user.tonBalance;
 
     // Perform swap in transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Update user balances
+      // 1. Reset semua accumulatedHashes di contracts user (aktif + expired)
+      await tx.contract.updateMany({
+        where: { userId },
+        data: { accumulatedHashes: 0 },
+      });
+
+      // 2. Tambah tonBalance user
       const updatedUser = await tx.user.update({
         where: { id: userId },
         data: {
-          hashes: 0, // Reset hashes
-          tonBalance: {
-            increment: tonAmount,
-          },
+          tonBalance: { increment: tonAmount },
         },
       });
 
-      // 2. Record swap in Swap table
+      // 3. Record swap
       const swap = await tx.swap.create({
         data: {
           userId,
@@ -131,11 +147,7 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        hashes: true,
-        tonBalance: true,
-      },
+      select: { id: true, tonBalance: true },
     });
 
     if (!user) {
@@ -145,13 +157,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const tonAmount = user.hashes * EXCHANGE_RATE;
-    const canSwap = user.hashes >= MINIMUM_SWAP_HASHES;
+    // Baca hashes dari contracts, bukan User.hashes
+    const contracts = await prisma.contract.findMany({
+      where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
+      select: { accumulatedHashes: true },
+    });
+
+    const currentHashes = contracts.reduce((sum, c) => sum + c.accumulatedHashes, 0);
+    const tonAmount = currentHashes * EXCHANGE_RATE;
+    const canSwap = currentHashes >= MINIMUM_SWAP_HASHES;
 
     return NextResponse.json({
       success: true,
       preview: {
-        currentHashes: user.hashes,
+        currentHashes,
         estimatedTon: tonAmount,
         exchangeRate: EXCHANGE_RATE,
         minimumRequired: MINIMUM_SWAP_HASHES,
