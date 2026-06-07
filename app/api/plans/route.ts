@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         badge: true,
         badgeColor: true,
         order: true,
+        isFree: true,
       },
     });
 

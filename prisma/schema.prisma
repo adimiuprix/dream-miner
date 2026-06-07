@@ -83,6 +83,7 @@ model Plan {
   
   order       Int      @default(0) // Display order
   isActive    Boolean  @default(true) // Show in shop
+  isFree      Boolean  @default(false) // Free plan (price = 0, no wallet needed)
   
   contracts   Contract[]
   

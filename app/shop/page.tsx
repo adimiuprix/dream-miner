@@ -53,9 +53,28 @@ export default function ShopPage() {
     try {
       setLoading(planId);
 
-      // Check if wallet is connected
+      // ── FREE PLAN: no wallet, no blockchain ──────────────────────
+      if (plan.isFree) {
+        const response = await fetch("/api/purchase/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, planId: plan.id }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          alert(data.error || "Failed to claim free plan");
+          return;
+        }
+
+        alert(`🎉 Free plan activated! ${plan.name} POWER for ${plan.duration} days.`);
+        window.location.reload();
+        return;
+      }
+
+      // ── PAID PLAN: require wallet ─────────────────────────────────
       if (!wallet) {
-        // Connect wallet first
         await tonConnectUI.openModal();
         setLoading(null);
         return;
@@ -71,7 +90,6 @@ export default function ShopPage() {
       // Send transaction
       const result = await tonConnectUI.sendTransaction(transaction);
 
-      // Transaction sent successfully
       console.log("Transaction sent to blockchain:", result);
 
       // Save to database with PENDING status

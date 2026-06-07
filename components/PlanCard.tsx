@@ -1,17 +1,18 @@
 export interface PowerPlan {
   id: string;
-  name: string;         // "118K", "600K", etc.
+  name: string;
   slug: string;
-  power: number;        // 118000, 600000, etc.
-  bonus: number;        // bonus power value
+  power: number;
+  bonus: number;
   bonusPercent: number;
   price: number;
   duration: number;
   description: string | null;
-  finalReturn: string | null; // "1.100 TON", etc.
-  badge: string | null;       // "+60K POWER", etc.
+  finalReturn: string | null;
+  badge: string | null;
   badgeColor: string | null;
   order: number;
+  isFree: boolean;
 }
 
 interface PlanCardProps {
@@ -35,15 +36,21 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
       className="flex items-center justify-between w-full rounded-2xl px-4 py-4 text-left transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       style={{
         background: "#161616",
-        border: "1px solid rgba(255,255,255,0.06)",
+        border: plan.isFree
+          ? "1px solid rgba(34,197,94,0.2)"
+          : "1px solid rgba(255,255,255,0.06)",
       }}
       onMouseEnter={(e) => {
         if (!loading) {
-          (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,212,170,0.2)";
+          (e.currentTarget as HTMLElement).style.borderColor = plan.isFree
+            ? "rgba(34,197,94,0.4)"
+            : "rgba(0,212,170,0.2)";
         }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.06)";
+        (e.currentTarget as HTMLElement).style.borderColor = plan.isFree
+          ? "rgba(34,197,94,0.2)"
+          : "rgba(255,255,255,0.06)";
       }}
     >
       {/* Left: power info */}
@@ -59,14 +66,22 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
             POWER
           </span>
         </div>
-        {plan.finalReturn && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <i className="fa-regular fa-clock" style={{ color: "#555", fontSize: "11px" }} />
+        <div className="flex items-center gap-3 mt-1">
+          {plan.finalReturn && (
+            <div className="flex items-center gap-1.5">
+              <i className="fa-regular fa-clock" style={{ color: "#555", fontSize: "11px" }} />
+              <span className="text-xs" style={{ color: "#6b6b6b" }}>
+                {plan.finalReturn}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <i className="fa-regular fa-calendar" style={{ color: "#555", fontSize: "10px" }} />
             <span className="text-xs" style={{ color: "#6b6b6b" }}>
-              Final return: {plan.finalReturn}
+              {plan.duration}d
             </span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Right: bonus + price */}
@@ -89,27 +104,40 @@ export default function PlanCard({ plan, onPurchase, loading = false }: PlanCard
             {plan.badge}
           </span>
         )}
-        <div
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm"
-          style={{
-            background: "#1e1e1e",
-            border: "1px solid rgba(255,255,255,0.1)",
-            color: "#fff",
-            minWidth: 60,
-            justifyContent: "center",
-          }}
-        >
-          {plan.price}
+        {/* Price button */}
+        {plan.isFree ? (
           <div
-            className="flex items-center justify-center rounded-full"
+            className="flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-sm"
             style={{
-              width: 18, height: 18,
-              background: "#0088cc",
+              background: "rgba(34,197,94,0.1)",
+              border: "1px solid rgba(34,197,94,0.3)",
+              color: "#22c55e",
+              minWidth: 60,
+              justifyContent: "center",
             }}
           >
-            <i className="fa-solid fa-diamond" style={{ fontSize: "8px", color: "#fff" }} />
+            FREE
           </div>
-        </div>
+        ) : (
+          <div
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm"
+            style={{
+              background: "#1e1e1e",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#fff",
+              minWidth: 60,
+              justifyContent: "center",
+            }}
+          >
+            {plan.price}
+            <div
+              className="flex items-center justify-center rounded-full"
+              style={{ width: 18, height: 18, background: "#0088cc" }}
+            >
+              <i className="fa-solid fa-diamond" style={{ fontSize: "8px", color: "#fff" }} />
+            </div>
+          </div>
+        )}
       </div>
     </button>
   );
