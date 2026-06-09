@@ -1,7 +1,166 @@
-export default function ContractSection() {
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
+
+interface Contract {
+  id: string;
+  power: number;
+  bonus: number;
+  status: string;
+  expiresAt: number;   // ms
+  lastSyncAt: number;  // ms
+  accumulatedHashes: number;
+  plan: {
+    id: string;
+    name: string;
+    duration: number; // days
+    isFree: boolean;
+  };
+}
+
+/** Format milliseconds remaining → "23h 59m" / "5d 2h" */
+function formatTimeLeft(msLeft: number): string {
+  if (msLeft <= 0) return "Expired";
+  const totalMin = Math.floor(msLeft / 60_000);
+  const days  = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins  = totalMin % 60;
+  if (days > 0)  return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+/** Progress: how far through the contract duration (0–100) */
+function calcProgress(expiresAt: number, durationDays: number): number {
+  const durationMs  = durationDays * 24 * 60 * 60 * 1000;
+  const startMs     = expiresAt - durationMs;
+  const elapsed     = Date.now() - startMs;
+  const pct         = (elapsed / durationMs) * 100;
+  return Math.min(100, Math.max(0, pct));
+}
+
+function ContractCard({ contract }: { contract: Contract }) {
+  const [now, setNow] = useState(Date.now());
+
+  // Tick every minute to keep countdown fresh
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const totalPower  = contract.power + contract.bonus;
+  const hPerDay     = ((totalPower / 100_000) * 86_400);
+  const msLeft      = contract.expiresAt - now;
+  const progress    = calcProgress(contract.expiresAt, contract.plan.duration);
+  const isExpired   = msLeft <= 0;
+
+  // Progress bar color
+  const barColor = isExpired
+    ? "#374151"
+    : progress > 80
+    ? "#f5a623"
+    : "var(--dm-green)";
+
   return (
-    <div className="px-4 mb-2">
-      <span
+    <div
+      className="rounded-2xl px-4 py-3.5"
+      style={{
+        background: "#111a16",
+        border: `1px solid ${isExpired ? "rgba(255,255,255,0.06)" : "rgba(0,212,170,0.15)"}`,
+      }}
+    >
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div
+          className="flex items-center justify-center rounded-xl flex-shrink-0"
+          style={{
+            width: 40, height: 40,
+            background: isExpired ? "rgba(255,255,255,0.04)" : "rgba(0,212,170,0.12)",
+            border: `1px solid ${isExpired ? "rgba(255,255,255,0.08)" : "rgba(0,212,170,0.25)"}`,
+          }}
+        >
+          <i
+            className="fa-solid fa-bolt"
+            style={{
+              color: isExpired ? "#444" : "var(--dm-green)",
+              fontSize: "16px",
+            }}
+          />
+        </div>
+
+        {/* Center: name + expiry */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: isExpired ? "#555" : "#fff" }}>
+            {totalPower.toLocaleString()} POWER
+          </p>
+          <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: isExpired ? "#444" : "#5a8a75" }}>
+            <i className="fa-regular fa-clock" style={{ fontSize: "10px" }} />
+            {isExpired ? "Expired" : `Expires in ${formatTimeLeft(msLeft)}`}
+          </p>
+        </div>
+
+        {/* Right: H/day */}
+        <div className="text-right flex-shrink-0">
+          <p className="text-base font-extrabold" style={{ color: isExpired ? "#444" : "var(--dm-green)" }}>
+            {isExpired ? "—" : hPerDay >= 1000
+              ? (hPerDay / 1000).toFixed(1) + "K"
+              : hPerDay.toFixed(0)}
+          </p>
+          <p className="text-xs" style={{ color: "#444" }}>H/day</p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mt-3">
+        <div
+          className="w-full rounded-full overflow-hidden"
+          style={{ height: 4, background: "rgba(255,255,255,0.06)" }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${progress}%`, background: barColor }}
+          />
+        </div>
+        <p className="text-right text-xs mt-1" style={{ color: "#404040" }}>
+          {Math.round(progress)}%
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function ContractSection() {
+  const { user } = useAuth();
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    fetch(`/api/contracts?userId=${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          // Show ACTIVE first, then EXPIRED — exclude CANCELLED
+          const sorted = (data.contracts as Contract[])
+            .filter((c) => c.status !== "CANCELLED")
+            .sort((a, b) => {
+              if (a.status === b.status) return b.expiresAt - a.expiresAt;
+              return a.status === "ACTIVE" ? -1 : 1;
+            });
+          setContracts(sorted);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  return (
+    <div className="px-4 mb-3">
+      {/* Section label */}
+      <p
+        className="mb-2"
         style={{
           fontSize: "10px",
           fontWeight: 600,
@@ -11,7 +170,34 @@ export default function ContractSection() {
         }}
       >
         YOUR CONTRACTS
-      </span>
+      </p>
+
+      {loading ? (
+        /* Skeleton */
+        <div className="flex flex-col gap-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl px-4 py-3.5 animate-pulse"
+              style={{ background: "#111a16", border: "1px solid rgba(255,255,255,0.06)", height: 88 }}
+            />
+          ))}
+        </div>
+      ) : contracts.length === 0 ? (
+        <div
+          className="rounded-2xl px-4 py-6 flex flex-col items-center gap-2"
+          style={{ background: "#111a16", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <i className="fa-solid fa-box-open" style={{ color: "#333", fontSize: "24px" }} />
+          <p className="text-xs" style={{ color: "#444" }}>No contracts yet. Buy a plan to start mining.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {contracts.map((c) => (
+            <ContractCard key={c.id} contract={c} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
