@@ -15,7 +15,7 @@ export interface MiningStats {
   miningRate: number;     // hashes per second
   currentHashes: number;  // total accumulated tersimpan di DB
   pendingHashes: number;  // hashes sejak lastSyncAt (belum di-flush)
-  lastSyncAt: string;     // ISO string, baseline untuk animasi client
+  lastSyncAt: number;     // Unix timestamp (ms), baseline untuk animasi client
 }
 
 interface MiningContextValue {

@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
     // Calculate total power (base + bonus)
     const totalPower = plan.power + plan.bonus;
 
-    // Calculate expiry date (30 days from now)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    // Calculate expiry date (duration from plan in days)
+    const nowMs = Date.now();
+    const expiresAtMs = nowMs + plan.duration * 24 * 60 * 60 * 1000;
 
     // Create transaction record with PENDING status
     // We'll verify on blockchain before marking as COMPLETED
@@ -127,8 +127,8 @@ export async function PUT(request: NextRequest) {
         : null;
 
       if (plan) {
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + (plan.duration || 30));
+        const nowMs = Date.now();
+        const expiresAtMs = nowMs + (plan.duration || 30) * 24 * 60 * 60 * 1000;
 
         // Create contract
         const contract = await prisma.contract.create({
@@ -136,10 +136,10 @@ export async function PUT(request: NextRequest) {
             userId: transaction.userId,
             planId: plan.id,
             power: plan.power,
-            price: plan.price,
             bonus: plan.bonus,
             status: "ACTIVE",
-            expiresAt,
+            expiresAt: BigInt(expiresAtMs),
+            lastSyncAt: BigInt(nowMs),
           },
         });
 

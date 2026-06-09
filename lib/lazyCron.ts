@@ -75,14 +75,14 @@ export async function triggerLazyCron(): Promise<void> {
  */
 async function expireContracts(): Promise<void> {
   try {
-    const now = new Date();
+    const nowMs = Date.now();
 
     // Find all active contracts that should be expired
     const result = await prisma.contract.updateMany({
       where: {
         status: "ACTIVE",
         expiresAt: {
-          lt: now,
+          lt: BigInt(nowMs),
         },
       },
       data: {

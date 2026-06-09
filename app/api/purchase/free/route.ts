@@ -12,35 +12,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cari contract free plan milik user yang statusnya EXPIRED
-    const contract = await prisma.contract.findFirst({
+    // Cari free plan dari database
+    const freePlan = await prisma.plan.findFirst({
+      where: { isFree: true, isActive: true },
+    });
+
+    if (!freePlan) {
+      return NextResponse.json(
+        { error: "Free plan not found" },
+        { status: 404 }
+      );
+    }
+
+    const nowMs = Date.now();
+
+    // Cek apakah user sudah punya free contract ACTIVE
+    const activeContract = await prisma.contract.findFirst({
+      where: {
+        userId,
+        status: "ACTIVE",
+        plan: { isFree: true },
+        expiresAt: { gt: BigInt(nowMs) },
+      },
+    });
+
+    if (activeContract) {
+      return NextResponse.json(
+        { error: "You already have an active free plan" },
+        { status: 400 }
+      );
+    }
+
+    // Cari contract free yang EXPIRED untuk di-reaktivasi
+    const expiredContract = await prisma.contract.findFirst({
       where: {
         userId,
         status: "EXPIRED",
         plan: { isFree: true },
       },
-      include: { plan: true },
+      orderBy: { expiresAt: "desc" }, // Ambil yang paling baru
     });
 
-    if (!contract) {
-      return NextResponse.json(
-        { error: "No expired free contract found for this user" },
-        { status: 404 }
-      );
+    const expiresAtMs = nowMs + freePlan.duration * 24 * 60 * 60 * 1000;
+
+    let contract;
+
+    if (expiredContract) {
+      // Reaktivasi contract yang expired
+      contract = await prisma.contract.update({
+        where: { id: expiredContract.id },
+        data: {
+          status: "ACTIVE",
+          expiresAt: BigInt(expiresAtMs),
+          lastSyncAt: BigInt(nowMs),
+          accumulatedHashes: 0, // Reset hashes untuk contract baru
+        },
+      });
+      console.log(`[FreePlan] Reactivated contract ${contract.id} for user ${userId}`);
+    } else {
+      // Buat contract baru untuk user yang belum pernah claim
+      contract = await prisma.contract.create({
+        data: {
+          userId,
+          planId: freePlan.id,
+          power: freePlan.power,
+          bonus: freePlan.bonus,
+          status: "ACTIVE",
+          expiresAt: BigInt(expiresAtMs),
+          lastSyncAt: BigInt(nowMs),
+        },
+      });
+      console.log(`[FreePlan] Created new contract ${contract.id} for user ${userId}`);
     }
 
-    // Update status menjadi ACTIVE
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // +1 hari dari sekarang
-
-    const updated = await prisma.contract.update({
-      where: { id: contract.id },
-      data: { status: "ACTIVE", expiresAt },
-    });
-
-    console.log(`[FreePlan] Contract ${contract.id} user ${userId} → ACTIVE`);
-
-    return NextResponse.json({ success: true, contract: updated });
+    return NextResponse.json({ success: true, contract });
   } catch (error) {
     console.error("Free plan activation error:", error);
     return NextResponse.json(

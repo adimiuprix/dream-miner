@@ -55,10 +55,10 @@ model Contract {
   bonus     Float    @default(0) // Bonus power received
   
   accumulatedHashes Float    @default(0)
-  lastSyncAt        DateTime @default(now())
+  lastSyncAt        BigInt   // Unix timestamp in milliseconds
 
   status    ContractStatus @default(ACTIVE)
-  expiresAt DateTime // When this contract expires
+  expiresAt BigInt   // Unix timestamp in milliseconds
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

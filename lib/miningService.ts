@@ -3,7 +3,7 @@
  *
  * Setiap contract menyimpan:
  *   - accumulatedHashes : hashes yang sudah dihitung sampai lastSyncAt
- *   - lastSyncAt        : timestamp terakhir akumulasi dihitung
+ *   - lastSyncAt        : Unix timestamp (ms) terakhir akumulasi dihitung
  *
  * Total hashes user = SUM(accumulatedHashes) di semua contract miliknya
  *                   + hashes "dalam perjalanan" sejak lastSyncAt terakhir
@@ -27,18 +27,18 @@ export interface MiningStats {
   miningRate: number;       // hashes per second
   currentHashes: number;    // total accumulated (sudah tersimpan di DB)
   pendingHashes: number;    // hashes sejak lastSyncAt (belum di-flush ke DB)
-  lastSyncAt: Date;         // untuk baseline animasi client
+  lastSyncAt: number;       // Unix timestamp (ms) untuk baseline animasi client
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper: flush semua contract aktif milik userId
 // ─────────────────────────────────────────────────────────────────────────────
-async function flushActiveContracts(userId: string, now: Date): Promise<void> {
+async function flushActiveContracts(userId: string, nowMs: number): Promise<void> {
   const contracts = await prisma.contract.findMany({
     where: {
       userId,
       status: "ACTIVE",
-      expiresAt: { gt: now },
+      expiresAt: { gt: BigInt(nowMs) },
     },
   });
 
@@ -49,7 +49,7 @@ async function flushActiveContracts(userId: string, now: Date): Promise<void> {
     contracts.map((c) => {
       const elapsedSeconds = Math.max(
         0,
-        (now.getTime() - new Date(c.lastSyncAt).getTime()) / 1000
+        (nowMs - Number(c.lastSyncAt)) / 1000
       );
       const powerPerSecond = (c.power + c.bonus) / POWER_TO_HASH_RATE;
       const delta = elapsedSeconds * powerPerSecond;
@@ -58,7 +58,7 @@ async function flushActiveContracts(userId: string, now: Date): Promise<void> {
         where: { id: c.id },
         data: {
           accumulatedHashes: { increment: delta },
-          lastSyncAt: now,
+          lastSyncAt: BigInt(nowMs),
         },
       });
     })
@@ -70,10 +70,10 @@ async function flushActiveContracts(userId: string, now: Date): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function syncMiningProgress(userId: string): Promise<MiningStats | null> {
   try {
-    const now = new Date();
+    const nowMs = Date.now();
 
     // 1. Flush semua contract aktif
-    await flushActiveContracts(userId, now);
+    await flushActiveContracts(userId, nowMs);
 
     // 2. Baca ulang untuk mendapatkan nilai terbaru
     return getMiningStatus(userId);
@@ -88,7 +88,7 @@ export async function syncMiningProgress(userId: string): Promise<MiningStats | 
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getMiningStatus(userId: string): Promise<MiningStats | null> {
   try {
-    const now = new Date();
+    const nowMs = Date.now();
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -102,7 +102,7 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
     if (!user) return null;
 
     const activeContracts = user.contracts.filter(
-      (c) => c.status === "ACTIVE" && new Date(c.expiresAt) > now
+      (c) => c.status === "ACTIVE" && Number(c.expiresAt) > nowMs
     );
 
     // Total power dari contract aktif
@@ -122,7 +122,7 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
     const pendingHashes = activeContracts.reduce((sum, c) => {
       const elapsed = Math.max(
         0,
-        (now.getTime() - new Date(c.lastSyncAt).getTime()) / 1000
+        (nowMs - Number(c.lastSyncAt)) / 1000
       );
       return sum + elapsed * ((c.power + c.bonus) / POWER_TO_HASH_RATE);
     }, 0);
@@ -130,10 +130,8 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
     // lastSyncAt terbaru dari semua contract aktif (untuk baseline animasi)
     const lastSyncAt =
       activeContracts.length > 0
-        ? new Date(
-            Math.max(...activeContracts.map((c) => new Date(c.lastSyncAt).getTime()))
-          )
-        : now;
+        ? Math.max(...activeContracts.map((c) => Number(c.lastSyncAt)))
+        : nowMs;
 
     return { totalPower, miningRate, currentHashes, pendingHashes, lastSyncAt };
   } catch (error) {
@@ -147,10 +145,10 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
 // ─────────────────────────────────────────────────────────────────────────────
 export async function markExpiredContracts(): Promise<string[]> {
   try {
-    const now = new Date();
+    const nowMs = Date.now();
 
     const expiredContracts = await prisma.contract.findMany({
-      where: { status: "ACTIVE", expiresAt: { lte: now } },
+      where: { status: "ACTIVE", expiresAt: { lte: BigInt(nowMs) } },
       select: { id: true, userId: true },
     });
 
@@ -158,7 +156,7 @@ export async function markExpiredContracts(): Promise<string[]> {
 
     // Flush hashes terakhir sebelum di-expire
     const uniqueUserIds = [...new Set(expiredContracts.map((c) => c.userId))];
-    await Promise.all(uniqueUserIds.map((uid) => flushActiveContracts(uid, now)));
+    await Promise.all(uniqueUserIds.map((uid) => flushActiveContracts(uid, nowMs)));
 
     // Tandai EXPIRED
     await prisma.contract.updateMany({
@@ -183,8 +181,9 @@ export async function markExpiredContracts(): Promise<string[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getUserActivePower(userId: string): Promise<number> {
   try {
+    const nowMs = Date.now();
     const contracts = await prisma.contract.findMany({
-      where: { userId, status: "ACTIVE", expiresAt: { gt: new Date() } },
+      where: { userId, status: "ACTIVE", expiresAt: { gt: BigInt(nowMs) } },
     });
     return contracts.reduce((sum, c) => sum + c.power + c.bonus, 0);
   } catch (error) {

@@ -70,18 +70,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (freePlan) {
-      const expiredAt = new Date(); // already expired (now = past)
-      expiredAt.setSeconds(expiredAt.getSeconds() - 1);
+      const nowMs = Date.now();
+      const expiredAtMs = nowMs - 1000; // expired 1 second ago
 
       await prisma.contract.create({
         data: {
           userId: newUser.id,
           planId: freePlan.id,
           power: freePlan.power,
-          price: 0,
           bonus: freePlan.bonus,
           status: "EXPIRED",
-          expiresAt: expiredAt,
+          expiresAt: BigInt(expiredAtMs),
+          lastSyncAt: BigInt(expiredAtMs),
         },
       });
 

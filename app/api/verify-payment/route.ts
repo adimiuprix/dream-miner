@@ -107,8 +107,8 @@ export async function POST(request: NextRequest) {
     console.log(`[VerifyPayment] Verified. Creating contract for user ${transaction.userId}...`);
 
     // Use plan.duration to calculate expiry
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + plan.duration);
+    const nowMs = Date.now();
+    const expiresAtMs = nowMs + plan.duration * 24 * 60 * 60 * 1000;
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Mark transaction as COMPLETED
@@ -131,10 +131,10 @@ export async function POST(request: NextRequest) {
           userId: transaction.userId,
           planId: plan.id,
           power: plan.power,
-          price: plan.price,
           bonus: plan.bonus,
           status: "ACTIVE",
-          expiresAt,
+          expiresAt: BigInt(expiresAtMs),
+          lastSyncAt: BigInt(nowMs),
         },
       });
 

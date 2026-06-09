@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         miningRate: stats.miningRate,
         currentHashes: stats.currentHashes,
         pendingHashes: stats.pendingHashes,
-        lastSyncAt: stats.lastSyncAt.toISOString(),
+        lastSyncAt: stats.lastSyncAt, // Already a number (Unix timestamp)
       },
     });
   } catch (error) {
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         miningRate: stats.miningRate,
         currentHashes: stats.currentHashes,
         pendingHashes: stats.pendingHashes,
-        lastSyncAt: stats.lastSyncAt.toISOString(),
+        lastSyncAt: stats.lastSyncAt, // Already a number (Unix timestamp)
       },
     });
   } catch (error) {
