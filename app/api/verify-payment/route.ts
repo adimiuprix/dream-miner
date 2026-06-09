@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransactionByReceiverAddress } from "@/lib/tonWebVerification";
+import { serializeContract } from "@/lib/serialization";
 
 /**
  * POST /api/verify-payment
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
       status: "COMPLETED",
       message: "Transaction verified and purchase completed",
       transaction: result.updatedTransaction,
-      contract: result.contract,
+      contract: serializeContract(result.contract),
       powerAdded: plan.power + plan.bonus,
       verification,
     });

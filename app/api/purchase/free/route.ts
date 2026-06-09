@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { serializeContract } from "@/lib/serialization";
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,7 +86,8 @@ export async function POST(request: NextRequest) {
       console.log(`[FreePlan] Created new contract ${contract.id} for user ${userId}`);
     }
 
-    return NextResponse.json({ success: true, contract });
+    // Serialize BigInt for JSON response
+    return NextResponse.json({ success: true, contract: serializeContract(contract) });
   } catch (error) {
     console.error("Free plan activation error:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { serializeContracts } from "@/lib/serialization";
 
 /**
  * GET /api/contracts?userId=xxx
@@ -20,11 +21,14 @@ export async function GET(request: NextRequest) {
     const contracts = await prisma.contract.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      include: {
+        plan: true,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      contracts,
+      contracts: serializeContracts(contracts),
     });
   } catch (error) {
     console.error("Get contracts error:", error);
