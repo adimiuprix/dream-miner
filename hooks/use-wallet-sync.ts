@@ -3,43 +3,65 @@
 import { useEffect, useRef } from "react";
 import { useTonWallet, useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/AuthProvider";
+import { Address } from "@ton/core";
 
 /**
  * useWalletSync
  *
  * Listen perubahan wallet TonConnect dan sinkronkan ke DB via PATCH /api/user/wallet.
- * Dipanggil sekali di level atas (AuthProvider atau AppWrapper).
+ * Dipanggil sekali di level atas (AppWrapper).
  *
- * - Wallet connect  → kirim address ke server → update user di context
- * - Wallet disconnect → kirim null ke server → update user di context
+ * - Wallet connect  → normalize address → simpan ke DB → update context
+ * - Wallet disconnect → kirim null → update context
+ *
+ * Address selalu dinormalize ke format user-friendly non-bounceable (EQ...)
+ * agar konsisten antara DB, swap, dan tampilan UI.
  */
+
+/**
+ * Normalize semua format TON address ke user-friendly non-bounceable (EQ...).
+ * Menangani: raw (0:abc...), bounceable (kQ..), non-bounceable (EQ..), dsb.
+ */
+function normalizeAddress(address: string): string | null {
+  try {
+    return Address.parse(address).toString({ bounceable: false, urlSafe: true });
+  } catch {
+    return null;
+  }
+}
+
 export function useWalletSync() {
-  const wallet      = useTonWallet();
-  const rawAddress  = useTonAddress(false); // non-bounceable address
+  const wallet     = useTonWallet();
+  const rawAddress = useTonAddress(false); // non-bounceable dari TonConnect
   const { user, updateWalletAddress } = useAuth();
 
   // Simpan address sebelumnya agar tidak kirim request duplikat
   const prevAddressRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    // Belum ada user di context, skip
     if (!user?.id) return;
 
-    // Tentukan address saat ini
-    const currentAddress = wallet ? (rawAddress || null) : null;
+    // Normalize ke format standar (EQ...), atau null jika wallet disconnect
+    const currentAddress = wallet && rawAddress
+      ? (normalizeAddress(rawAddress) ?? null)
+      : null;
 
-    // Tidak ada perubahan, skip
+    // Skip jika tidak ada perubahan
     if (prevAddressRef.current === currentAddress) return;
 
-    // Juga skip saat inisialisasi pertama jika nilai sudah sama dengan DB
-    if (prevAddressRef.current === undefined && currentAddress === user.walletAddress) {
-      prevAddressRef.current = currentAddress;
-      return;
+    // Skip inisialisasi pertama jika nilai sudah sama dengan DB
+    if (prevAddressRef.current === undefined) {
+      const savedNormalized = user.walletAddress
+        ? (normalizeAddress(user.walletAddress) ?? user.walletAddress)
+        : null;
+      if (currentAddress === savedNormalized) {
+        prevAddressRef.current = currentAddress;
+        return;
+      }
     }
 
     prevAddressRef.current = currentAddress;
 
-    // Kirim ke server
     const sync = async () => {
       try {
         const res = await fetch("/api/user/wallet", {
@@ -54,7 +76,6 @@ export function useWalletSync() {
           return;
         }
 
-        // Update context lokal agar komponen lain langsung dapat nilai terbaru
         updateWalletAddress(currentAddress);
 
         console.log(

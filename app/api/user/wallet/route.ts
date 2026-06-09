@@ -1,5 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { Address } from "@ton/core";
+
+/**
+ * Normalize semua format TON address ke user-friendly non-bounceable (EQ...).
+ */
+function normalizeAddress(address: string): string {
+  try {
+    return Address.parse(address).toString({ bounceable: false, urlSafe: true });
+  } catch {
+    return address; // kembalikan apa adanya jika gagal parse
+  }
+}
 
 /**
  * PATCH /api/user/wallet
@@ -36,7 +48,11 @@ export async function PATCH(request: NextRequest) {
 
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: { walletAddress: walletAddress ?? null },
+      data: {
+        walletAddress: walletAddress
+          ? normalizeAddress(walletAddress)
+          : null,
+      },
       select: { id: true, walletAddress: true },
     });
 
