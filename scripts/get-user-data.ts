@@ -78,7 +78,7 @@ async function getUserData(userId) {
           (sum: number, c: { power: number; bonus: number }) => sum + c.power + c.bonus,
           0
         );
-        console.log(`   Power: ${activePower.toLocaleString()} | Hashes: ${user.hashes.toFixed(2)} | TON: ${user.tonBalance.toFixed(4)}`);
+        console.log(`   Power: ${activePower.toLocaleString()} | TON: ${user.tonBalance.toFixed(4)}`);
         console.log(`   Contracts: ${user._count.contracts} | Transactions: ${user._count.transactions} | Referrals: ${user._count.referrals}`);
         
         if (activePower > 0) {
@@ -121,7 +121,6 @@ function printUserDetail(user) {
     .filter((c: { status: string }) => c.status === 'ACTIVE')
     .reduce((sum: number, c: { power: number; bonus: number }) => sum + c.power + c.bonus, 0);
   console.log(`   Power: ${activePower.toLocaleString()} (from active contracts)`);
-  console.log(`   Hashes: ${user.hashes.toFixed(8)}`);
   console.log(`   TON Balance: ${user.tonBalance.toFixed(4)}`);
   
   if (activePower > 0) {

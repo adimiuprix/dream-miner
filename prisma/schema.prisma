@@ -19,9 +19,8 @@ model User {
   languageCode String?
 
   // Mining stats
-  hashes       Float    @default(0) // Accumulated mined currency
   tonBalance   Float    @default(0) // Converted TON balance
-  // Note: power is calculated from active contracts, not stored
+  // Note: power and hashes are calculated from active contracts, not stored
 
   // Referral System
   referralCode String   @unique @default(cuid()) // Unique code for sharing
@@ -170,6 +169,7 @@ enum TransactionStatus {
 }
 
 enum SwapStatus {
+  PENDING
   COMPLETED
   FAILED
   CANCELLED

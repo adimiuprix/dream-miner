@@ -47,7 +47,6 @@ async function listUsers() {
       0
     );
     console.log(`   Power: ${activePower.toLocaleString()} (from ${user.contracts.length} active contract(s))`);
-    console.log(`   Hashes: ${user.hashes.toFixed(8)}`);
     console.log(`   TON Balance: ${user.tonBalance.toFixed(4)}`);
     console.log(`   Active Contracts: ${user.contracts.length}`);
     console.log(`   Total Contracts: ${user._count.contracts}`);
