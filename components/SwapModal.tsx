@@ -10,6 +10,7 @@ import { AlertTriangle, User, ArrowDownUp, Shield } from "lucide-react";
 
 interface SwapPreview {
   canSwap: boolean;
+  hasWallet: boolean;
   currentHashes: number;
   currentTonBalance: number;
   estimatedTon: number;
@@ -61,6 +62,12 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
 
   const handleSwap = async () => {
     if (!preview?.canSwap) return;
+
+    // Guard: wallet harus ada sebelum swap dieksekusi
+    if (!preview.hasWallet) {
+      alert("⚠️ No wallet connected.\n\nPlease connect your TON wallet first before swapping.");
+      return;
+    }
 
     try {
       setIsSwapping(true);
@@ -271,6 +278,8 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
                     <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
                     Swapping...
                   </span>
+                ) : !preview.hasWallet ? (
+                  "Connect Wallet First"
                 ) : !preview.canSwap ? (
                   `Insufficient Balance (Min: ${formatNumber(preview.minimumRequired, 0)})`
                 ) : (

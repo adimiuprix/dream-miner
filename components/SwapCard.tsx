@@ -14,6 +14,10 @@ export default function SwapCard() {
       alert("Please log in first");
       return;
     }
+    if (!user.walletAddress) {
+      alert("⚠️ No wallet connected.\n\nPlease connect your TON wallet first before swapping.");
+      return;
+    }
     setIsModalOpen(true);
   };
 
