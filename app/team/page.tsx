@@ -51,7 +51,7 @@ export default function TeamPage() {
         iconClass="fa-solid fa-users"
       />
 
-      <BonusCards />
+      <BonusCards config={teamData?.bonusConfig ?? null} />
 
       {isLoading ? (
         // Skeleton for StatsGrid

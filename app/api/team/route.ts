@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { JOIN_BONUS_POWER, PURCHASE_BONUS_PERCENT } from "@/lib/referralBonus";
 
 export interface TeamMember {
   id: string;
   name: string;
   avatar: string;
   joinedAt: string;
-  isPremium: boolean; // has at least one non-free ACTIVE contract
+  isPremium: boolean;
   totalPower: number;
 }
 
@@ -19,10 +20,15 @@ export interface PowerLogEntry {
 }
 
 export interface TeamStats {
-  totalReferred: number;  // total referrals
-  validMembers: number;   // referrals with ACTIVE contract (non-free)
-  pendingMembers: number; // referrals with no active non-free contract
-  totalPowerEarned: number;
+  totalReferred: number;
+  validMembers: number;
+  pendingMembers: number;
+  totalPowerEarned: number; // actual dari bonus contracts di DB
+}
+
+export interface BonusConfig {
+  joinBonusPower: number;       // flat power saat downline join
+  purchaseBonusPercent: number; // persentase dari power plan downline (0–100)
 }
 
 export interface TeamData {
@@ -30,24 +36,20 @@ export interface TeamData {
   members: TeamMember[];
   powerLog: PowerLogEntry[];
   referralCode: string;
+  bonusConfig: BonusConfig;
 }
 
 /**
  * GET /api/team?userId=xxx
- * Returns referral stats, member list, and power log for a user.
  */
 export async function GET(request: NextRequest) {
   try {
     const userId = request.nextUrl.searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // Get current user (for referralCode)
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { referralCode: true },
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get all referred users with their contracts and transactions
+    // ── Referrals dengan contracts + transactions ────────────────────────────
     const referrals = await prisma.user.findMany({
       where: { referredById: userId },
       select: {
@@ -78,9 +80,8 @@ export async function GET(request: NextRequest) {
           where: { status: "COMPLETED", type: "PURCHASE_POWER" },
           select: {
             id: true,
-            amount: true,
             createdAt: true,
-            metadata: true,
+            metadata: true, // berisi planId, power
           },
           orderBy: { createdAt: "desc" },
         },
@@ -88,12 +89,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Build member list
+    // ── Member list ──────────────────────────────────────────────────────────
     const members: TeamMember[] = referrals.map((r) => {
-      const name =
-        r.username ||
-        [r.firstName, r.lastName].filter(Boolean).join(" ");
-
+      const name = r.username || [r.firstName, r.lastName].filter(Boolean).join(" ");
       const nameParts = name.trim().split(" ");
       const avatar =
         nameParts.length >= 2
@@ -103,7 +101,6 @@ export async function GET(request: NextRequest) {
       const hasActiveNonFree = r.contracts.some(
         (c) => c.status === "ACTIVE" && !c.plan.isFree
       );
-
       const totalPower = r.contracts
         .filter((c) => c.status === "ACTIVE")
         .reduce((sum, c) => sum + c.power + c.bonus, 0);
@@ -118,57 +115,65 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Stats
-    const validMembers = members.filter((m) => m.isPremium).length;
+    // ── Stats: totalPowerEarned dari bonus contracts aktual di DB ────────────
+    const bonusContracts = await prisma.contract.findMany({
+      where: {
+        userId,
+        plan: { slug: "referral-bonus" },
+      },
+      select: { power: true },
+    });
+
+    const totalPowerEarned = bonusContracts.reduce((sum, c) => sum + c.power, 0);
+
+    const validMembers   = members.filter((m) => m.isPremium).length;
     const pendingMembers = members.length - validMembers;
 
-    // Power earned: 2000 per referral join + 4000 per premium member
-    // (matching the BonusCards display values)
-    const REFERRAL_BONUS = 2000;
-    const PREMIUM_BONUS = 4000;
-    const totalPowerEarned =
-      members.length * REFERRAL_BONUS + validMembers * PREMIUM_BONUS;
-
     const stats: TeamStats = {
-      totalReferred: members.length,
+      totalReferred:   members.length,
       validMembers,
       pendingMembers,
       totalPowerEarned,
     };
 
-    // Build power log — one entry per join + one per purchase
+    // ── Power log ────────────────────────────────────────────────────────────
     const powerLog: PowerLogEntry[] = [];
 
     for (const r of referrals) {
-      const name =
-        r.username ||
-        [r.firstName, r.lastName].filter(Boolean).join(" ");
+      const name = r.username || [r.firstName, r.lastName].filter(Boolean).join(" ");
 
-      // Join event
+      // Join event — flat bonus
       powerLog.push({
-        id: `join-${r.id}`,
-        type: "referral_join",
-        memberName: name,
-        powerEarned: REFERRAL_BONUS,
-        date: r.createdAt.toISOString(),
+        id:          `join-${r.id}`,
+        type:        "referral_join",
+        memberName:  name,
+        powerEarned: JOIN_BONUS_POWER,
+        date:        r.createdAt.toISOString(),
       });
 
-      // Purchase events
+      // Purchase events — 50% dari power plan yang dibeli
       for (const tx of r.transactions) {
+        const meta       = JSON.parse(tx.metadata || "{}");
+        const planPower  = (meta.power as number | undefined) ?? 0;
+        const earned     = Math.floor(planPower * PURCHASE_BONUS_PERCENT);
+
         powerLog.push({
-          id: `purchase-${tx.id}`,
-          type: "referral_purchase",
-          memberName: name,
-          powerEarned: PREMIUM_BONUS,
-          date: tx.createdAt.toISOString(),
+          id:          `purchase-${tx.id}`,
+          type:        "referral_purchase",
+          memberName:  name,
+          powerEarned: earned,
+          date:        tx.createdAt.toISOString(),
         });
       }
     }
 
-    // Sort power log newest first
-    powerLog.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    powerLog.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // ── Bonus config untuk display di UI ─────────────────────────────────────
+    const bonusConfig: BonusConfig = {
+      joinBonusPower:       JOIN_BONUS_POWER,
+      purchaseBonusPercent: Math.round(PURCHASE_BONUS_PERCENT * 100),
+    };
 
     return NextResponse.json({
       success: true,
@@ -177,13 +182,11 @@ export async function GET(request: NextRequest) {
         members,
         powerLog,
         referralCode: currentUser.referralCode,
+        bonusConfig,
       } satisfies TeamData,
     });
   } catch (error) {
     console.error("Team error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch team data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch team data" }, { status: 500 });
   }
 }

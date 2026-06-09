@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
-const JOIN_BONUS_POWER         = 2_000;
-const PURCHASE_BONUS_PERCENT   = 0.5;  // 50% dari total power plan yang dibeli downline
+// ─── Konstanta bonus — single source of truth ────────────────────────────────
+export const JOIN_BONUS_POWER       = 2_000;        // power flat saat downline join
+export const PURCHASE_BONUS_PERCENT = 0.5;          // 50% dari power plan downline
 
 export async function giveJoinBonus(referrerId: string): Promise<void> {
   try {
