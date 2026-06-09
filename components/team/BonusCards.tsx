@@ -28,11 +28,11 @@ export default function BonusCards() {
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold" style={{ color: "#fff" }}>Premium Bonus</p>
-          <p className="text-xs mt-0.5" style={{ color: "#6b6b6b" }}>For each premium user</p>
+          <p className="text-xs mt-0.5" style={{ color: "#6b6b6b" }}>When downline buys a plan</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-extrabold" style={{ color: "#f5a623" }}>+4,000</p>
-          <p className="text-xs" style={{ color: "#555" }}>POWER</p>
+          <p className="text-sm font-extrabold" style={{ color: "#f5a623" }}>+50%</p>
+          <p className="text-xs" style={{ color: "#555" }}>OF POWER</p>
         </div>
       </div>
 

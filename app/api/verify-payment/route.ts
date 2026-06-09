@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransactionByReceiverAddress } from "@/lib/tonWebVerification";
 import { serializeContract } from "@/lib/serialization";
+import { givePurchaseBonus } from "@/lib/referralBonus";
 
 /**
  * POST /api/verify-payment
@@ -141,6 +142,15 @@ export async function POST(request: NextRequest) {
 
       return { updatedTransaction, contract };
     });
+
+    // Give purchase bonus to referrer if buyer was referred (fire-and-forget)
+    const buyer = await prisma.user.findUnique({
+      where: { id: transaction.userId },
+      select: { referredById: true },
+    });
+    if (buyer?.referredById) {
+      givePurchaseBonus(buyer.referredById, plan.power, plan.bonus, plan.duration);
+    }
 
     console.log(`[VerifyPayment] Purchase completed for user ${transaction.userId}`);
 

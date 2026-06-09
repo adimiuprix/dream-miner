@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { giveJoinBonus } from "@/lib/referralBonus";
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,6 +89,11 @@ export async function POST(request: NextRequest) {
       console.log(
         `[Auth] New user ${newUser.id} — added expired free plan "${freePlan.name}"`
       );
+    }
+
+    // Give join bonus to referrer (fire-and-forget, tidak block response)
+    if (referredById) {
+      giveJoinBonus(referredById);
     }
 
     return NextResponse.json({
