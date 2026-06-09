@@ -1,11 +1,15 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { useWalletSync } from "@/hooks/use-wallet-sync";
 import WelcomeScreen from "@/components/welcome/WelcomeScreen";
 import BottomNav from "@/components/bottom-nav";
 
 export default function AppWrapper({ children }: { children: React.ReactNode }) {
   const { status, completeOnboarding } = useAuth();
+
+  // Sync TON wallet connect/disconnect → DB secara otomatis
+  useWalletSync();
 
   // Loading state — show a minimal loading screen
   if (status === "loading") {

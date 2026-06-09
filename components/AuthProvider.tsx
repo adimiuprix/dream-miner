@@ -28,12 +28,14 @@ export interface IAuthContext {
   status: AuthStatus;
   user: IAuthUser | null;
   completeOnboarding: () => void;
+  updateWalletAddress: (address: string | null) => void;
 }
 
 const AuthContext = createContext<IAuthContext>({
   status: "loading",
   user: null,
   completeOnboarding: () => {},
+  updateWalletAddress: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -103,16 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [tgUser]);
 
   const completeOnboarding = () => {
-    // In dev mode (no Telegram), save to localStorage
     if (!tgUser?.id && user) {
       localStorage.setItem("dream_miner_dev_user", JSON.stringify(user));
     }
-    // If we have a user from API (new user was already saved to DB), just switch status
     setStatus("authenticated");
   };
 
+  const updateWalletAddress = (address: string | null) => {
+    setUser((prev) => prev ? { ...prev, walletAddress: address } : prev);
+  };
+
   return (
-    <AuthContext.Provider value={{ status, user, completeOnboarding }}>
+    <AuthContext.Provider value={{ status, user, completeOnboarding, updateWalletAddress }}>
       {children}
     </AuthContext.Provider>
   );

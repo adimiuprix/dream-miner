@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TonConnectButton } from "@tonconnect/ui-react";
+import { TonConnectButton, useTonAddress } from "@tonconnect/ui-react";
+import { useAuth } from "@/components/AuthProvider";
 
 const menuItems = [
   {
@@ -75,6 +76,8 @@ const menuItems = [
 export default function MorePage() {
   const [tasksOpen, setTasksOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const { user } = useAuth();
+  const connectedAddress = useTonAddress(false);
 
   return (
     <div className="flex flex-col min-h-full px-4 pt-4 pb-20" style={{ background: "var(--background)" }}>
@@ -160,12 +163,43 @@ export default function MorePage() {
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2">
               <i className="fa-solid fa-wallet" style={{ color: "#3b82f6", fontSize: "18px" }} />
-              <h3 className="text-base font-bold" style={{ color: "#fff" }}>TON Wallet Connection</h3>
+              <h3 className="text-base font-bold" style={{ color: "#fff" }}>TON Wallet</h3>
             </div>
             <p className="text-xs text-center" style={{ color: "#6b6b6b" }}>
-              Connect your TON wallet to make purchases and receive payments
+              Connect your TON wallet to make purchases and receive swap payouts.
             </p>
+
             <TonConnectButton />
+
+            {/* Status tersimpan di DB */}
+            {user?.walletAddress ? (
+              <div
+                className="w-full rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)" }}
+              >
+                <i className="fa-solid fa-circle-check" style={{ color: "var(--dm-green)", fontSize: "14px" }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: "var(--dm-green)" }}>Saved to account</p>
+                  <p
+                    className="text-xs mt-0.5 truncate font-mono"
+                    style={{ color: "#5a8a75" }}
+                    title={user.walletAddress}
+                  >
+                    {user.walletAddress}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="w-full rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}
+              >
+                <i className="fa-solid fa-circle-xmark" style={{ color: "#ef4444", fontSize: "14px" }} />
+                <p className="text-xs" style={{ color: "#ef4444" }}>
+                  No wallet saved — connect a wallet above to enable swaps.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
