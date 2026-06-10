@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
-import BonusCards from "@/components/team/BonusCards";
-import StatsGrid from "@/components/team/StatsGrid";
-import ActionButtons from "@/components/team/ActionButtons";
-import TeamTabs from "@/components/team/TeamTabs";
-import MemberList from "@/components/team/MemberList";
-import PowerLog from "@/components/team/PowerLog";
+import BonusCards from "@/components/BonusCards";
+import StatsGrid from "@/components/StatsGrid";
+import ActionButtons from "@/components/ActionButtons";
+import TeamTabs from "@/components/TeamTabs";
+import MemberList from "@/components/MemberList";
+import PowerLog from "@/components/PowerLog";
 import { useAuth } from "@/components/AuthProvider";
 import type { TeamData } from "@/app/api/team/route";
 
