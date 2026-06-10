@@ -36,8 +36,8 @@ async function main() {
     // Not shown in shop (isActive: false). Used internally as planId
     // for bonus contracts given to referrers.
     {
-      name: "Referral Bonus",
-      slug: "referral-bonus",
+      name: "Bonus",
+      slug: "bonus",
       power: 0,
       bonus: 0,
       bonusPercent: 0,
