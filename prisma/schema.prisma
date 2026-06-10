@@ -40,6 +40,7 @@ model User {
   contracts    Contract[]
   transactions Transaction[]
   swaps        Swap[]
+  userTasks    UserTask[]
 }
 
 model Contract {
@@ -147,6 +148,51 @@ model Swap {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String                          // "Join our Telegram channel"
+  description String                          // "Subscribe to @DreamMinerOfficial"
+  type        TaskType                        // social | referral | daily | purchase
+  reward      Float                           // Power reward amount
+  link        String?                         // External URL to open (social tasks)
+  isActive    Boolean    @default(true)       // Show to users
+  order       Int        @default(0)          // Display order
+  
+  // For repeatable tasks (e.g. daily)
+  isRepeatable  Boolean  @default(false)
+  repeatCooldownHours Int @default(24)        // Hours before task can be done again
+
+  completions UserTask[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([isActive, order])
+  @@index([type])
+}
+
+model UserTask {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId      String
+  task        Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  powerEarned Float                           // Actual power awarded (snapshot of task.reward)
+  completedAt DateTime   @default(now())
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([completedAt])
+}
+
+enum TaskType {
+  SOCIAL     // Follow/join social media
+  REFERRAL   // Invite friends
+  DAILY      // Daily check-in or action
+  PURCHASE   // Buy a plan
 }
 
 enum ContractStatus {

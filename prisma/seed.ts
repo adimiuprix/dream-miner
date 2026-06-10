@@ -153,6 +153,149 @@ async function main() {
   console.log("");
   console.log("🎉 Seed completed!");
   console.log(`📊 Total plans in DB: ${total} (1 free + ${plans.length - 1} paid)`);
+
+  const tasks = [
+    // ── Social ───────────────────────────────────────────────────────────────
+    {
+      id: "task-join-telegram",
+      title: "Join our Telegram channel",
+      description: "Subscribe to our official Telegram channel for updates",
+      type: "SOCIAL" as const,
+      reward: 5_000,
+      link: "https://t.me/DreamMinerOfficial",
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 1,
+    },
+    {
+      id: "task-join-community",
+      title: "Join Telegram community group",
+      description: "Be part of our growing community",
+      type: "SOCIAL" as const,
+      reward: 3_000,
+      link: "https://t.me/DreamMinerCommunity",
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 2,
+    },
+    {
+      id: "task-follow-twitter",
+      title: "Follow us on X (Twitter)",
+      description: "Follow @DreamMinerTON for the latest news",
+      type: "SOCIAL" as const,
+      reward: 3_000,
+      link: "https://x.com/DreamMinerTON",
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 3,
+    },
+
+    // ── Referral ─────────────────────────────────────────────────────────────
+    {
+      id: "task-invite-1",
+      title: "Invite your first friend",
+      description: "Get 1 friend to join via your referral link",
+      type: "REFERRAL" as const,
+      reward: 10_000,
+      link: null,
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 10,
+    },
+    {
+      id: "task-invite-5",
+      title: "Invite 5 friends",
+      description: "Grow your team to 5 active members",
+      type: "REFERRAL" as const,
+      reward: 25_000,
+      link: null,
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 11,
+    },
+    {
+      id: "task-invite-10",
+      title: "Invite 10 friends",
+      description: "Build a team of 10 active referrals",
+      type: "REFERRAL" as const,
+      reward: 60_000,
+      link: null,
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 12,
+    },
+
+    // ── Daily ─────────────────────────────────────────────────────────────────
+    {
+      id: "task-daily-checkin",
+      title: "Daily check-in",
+      description: "Open the app every day to claim your bonus",
+      type: "DAILY" as const,
+      reward: 1_000,
+      link: null,
+      isActive: true,
+      isRepeatable: true,
+      repeatCooldownHours: 24,
+      order: 20,
+    },
+
+    // ── Purchase ──────────────────────────────────────────────────────────────
+    {
+      id: "task-buy-first-plan",
+      title: "Buy your first plan",
+      description: "Purchase any paid Power plan from the shop",
+      type: "PURCHASE" as const,
+      reward: 15_000,
+      link: null,
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 30,
+    },
+    {
+      id: "task-connect-wallet",
+      title: "Connect your TON wallet",
+      description: "Link a TON wallet to your account",
+      type: "PURCHASE" as const,
+      reward: 2_000,
+      link: null,
+      isActive: true,
+      isRepeatable: false,
+      repeatCooldownHours: 0,
+      order: 31,
+    },
+  ];
+
+  for (const taskData of tasks) {
+    const task = await prisma.task.upsert({
+      where: { id: taskData.id },
+      update: taskData,
+      create: taskData,
+    });
+
+    const typeIcon: Record<string, string> = {
+      SOCIAL:   "📣",
+      REFERRAL: "👥",
+      DAILY:    "📅",
+      PURCHASE: "🛒",
+    };
+
+    const repeat = task.isRepeatable ? ` (repeatable ${task.repeatCooldownHours}h)` : "";
+    console.log(
+      `  ${typeIcon[task.type] ?? "✅"} [${task.type}] ${task.title} — ` +
+      `+${task.reward.toLocaleString()} POWER${repeat}`
+    );
+  }
+
+  const taskTotal = await prisma.task.count();
+  console.log("");
+  console.log(`📊 Total tasks in DB: ${taskTotal}`);
 }
 
 main()
