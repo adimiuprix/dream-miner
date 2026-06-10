@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TonConnectButton, useTonAddress } from "@tonconnect/ui-react";
-import { useAuth } from "@/components/AuthProvider";
 
 const menuItems = [
   {
@@ -15,7 +12,7 @@ const menuItems = [
     iconColor: "var(--dm-green)",
     iconBorder: "rgba(0,212,170,0.2)",
     badge: null,
-    isTonConnect: false,
+    href: "/more/tasks",
   },
   {
     id: "menu-wallet",
@@ -26,18 +23,18 @@ const menuItems = [
     iconColor: "#3b82f6",
     iconBorder: "rgba(59,130,246,0.2)",
     badge: null,
-    isTonConnect: true,
+    href: "/more/wallet",
   },
   {
     id: "menu-history",
     icon: "fa-solid fa-clock-rotate-left",
     label: "History",
-    sub: "View transaction history",
+    sub: "View transaction & swap history",
     iconBg: "rgba(139,92,246,0.12)",
     iconColor: "#8b5cf6",
     iconBorder: "rgba(139,92,246,0.2)",
     badge: null,
-    isTonConnect: false,
+    href: "/more/history",
   },
   {
     id: "menu-invite",
@@ -48,7 +45,7 @@ const menuItems = [
     iconColor: "#f5a623",
     iconBorder: "rgba(245,166,35,0.2)",
     badge: "HOT",
-    isTonConnect: false,
+    href: "/more/invite",
   },
   {
     id: "menu-support",
@@ -59,7 +56,7 @@ const menuItems = [
     iconColor: "#a3a3a3",
     iconBorder: "rgba(255,255,255,0.1)",
     badge: null,
-    isTonConnect: false,
+    href: "/more/support",
   },
   {
     id: "menu-settings",
@@ -70,15 +67,11 @@ const menuItems = [
     iconColor: "#a3a3a3",
     iconBorder: "rgba(255,255,255,0.1)",
     badge: null,
-    isTonConnect: false,
+    href: "/more/settings",
   },
 ];
 
 export default function MorePage() {
-  const [tasksOpen, setTasksOpen] = useState(false);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const { user } = useAuth();
-  const connectedAddress = useTonAddress(false);
   const router = useRouter();
 
   return (
@@ -99,114 +92,10 @@ export default function MorePage() {
           >
             <i className="fa-solid fa-chevron-left" style={{ color: "var(--dm-green)", fontSize: "18px" }} />
           </button>
-          <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>Back</h1>
+          <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>More</h1>
           <p className="text-sm mt-0.5" style={{ color: "#6b6b6b" }}>Settings & features</p>
         </div>
-        <button
-          id="lang-selector-more"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-          style={{
-            background: "#1a1a1a",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#a3a3a3",
-          }}
-        >
-          <i className="fa-solid fa-globe" style={{ color: "var(--dm-green)", fontSize: "12px" }} />
-          EN
-          <i className="fa-solid fa-chevron-down" style={{ fontSize: "9px" }} />
-        </button>
       </div>
-
-      {/* Tasks inline panel */}
-      {tasksOpen && (
-        <div
-          className="rounded-2xl mb-4 overflow-hidden"
-          style={{ background: "#161616", border: "1px solid rgba(0,212,170,0.15)" }}
-        >
-          {/* Stats row */}
-          <div className="grid grid-cols-2 divide-x" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="flex items-center gap-3 px-4 py-4">
-              <div className="flex items-center justify-center rounded-full"
-                style={{ width: 34, height: 34, background: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.2)" }}>
-                <i className="fa-solid fa-bolt" style={{ color: "var(--dm-green)", fontSize: "13px" }} />
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "#6b6b6b" }}>Total Earned</p>
-                <p className="text-base font-extrabold" style={{ color: "var(--dm-green)" }}>
-                  0.00 <span className="text-xs font-bold" style={{ color: "#555" }}>POWER</span>
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-4 py-4" style={{ borderLeft: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="flex items-center justify-center rounded-full"
-                style={{ width: 34, height: 34, background: "rgba(245,166,35,0.1)", border: "1px solid rgba(245,166,35,0.2)" }}>
-                <i className="fa-solid fa-gift" style={{ color: "#f5a623", fontSize: "13px" }} />
-              </div>
-              <div>
-                <p className="text-xs" style={{ color: "#6b6b6b" }}>Available</p>
-                <p className="text-base font-extrabold" style={{ color: "#f5a623" }}>
-                  0.00 <span className="text-xs font-bold" style={{ color: "#555" }}>POWER</span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center py-10 gap-2">
-            <i className="fa-solid fa-circle-notch fa-spin" style={{ color: "var(--dm-green)", fontSize: "22px" }} />
-            <p className="text-sm" style={{ color: "#555" }}>Loading tasks...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Wallet panel */}
-      {walletOpen && (
-        <div
-          className="rounded-2xl mb-4 overflow-hidden p-4"
-          style={{ background: "#161616", border: "1px solid rgba(59,130,246,0.2)" }}
-        >
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-2">
-              <i className="fa-solid fa-wallet" style={{ color: "#3b82f6", fontSize: "18px" }} />
-              <h3 className="text-base font-bold" style={{ color: "#fff" }}>TON Wallet</h3>
-            </div>
-            <p className="text-xs text-center" style={{ color: "#6b6b6b" }}>
-              Connect your TON wallet to make purchases and receive swap payouts.
-            </p>
-
-            <TonConnectButton />
-
-            {/* Status tersimpan di DB */}
-            {user?.walletAddress ? (
-              <div
-                className="w-full rounded-xl px-4 py-3 flex items-center gap-3"
-                style={{ background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)" }}
-              >
-                <i className="fa-solid fa-circle-check" style={{ color: "var(--dm-green)", fontSize: "14px" }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold" style={{ color: "var(--dm-green)" }}>Saved to account</p>
-                  <p
-                    className="text-xs mt-0.5 truncate font-mono"
-                    style={{ color: "#5a8a75" }}
-                    title={user.walletAddress}
-                  >
-                    {user.walletAddress}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="w-full rounded-xl px-4 py-3 flex items-center gap-3"
-                style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}
-              >
-                <i className="fa-solid fa-circle-xmark" style={{ color: "#ef4444", fontSize: "14px" }} />
-                <p className="text-xs" style={{ color: "#ef4444" }}>
-                  No wallet saved — connect a wallet above to enable swaps.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Menu list */}
       <div
@@ -217,26 +106,10 @@ export default function MorePage() {
           <button
             key={item.id}
             id={item.id}
-            onClick={() => {
-              if (item.label === "Tasks") setTasksOpen((v) => !v);
-              if (item.isTonConnect) setWalletOpen((v) => !v);
-            }}
-            className="flex items-center gap-4 w-full px-4 py-4 text-left transition-all duration-200"
+            onClick={() => router.push(item.href)}
+            className="flex items-center gap-4 w-full px-4 py-4 text-left transition-all duration-150 hover:bg-white/[0.02] active:bg-white/[0.04]"
             style={{
               borderBottom: i < menuItems.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-              background: 
-                (item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)
-                  ? "rgba(0,212,170,0.05)" 
-                  : "transparent",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background =
-                (item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)
-                  ? "rgba(0,212,170,0.05)" 
-                  : "transparent";
             }}
           >
             {/* Icon */}
@@ -257,7 +130,7 @@ export default function MorePage() {
               <p className="text-xs mt-0.5" style={{ color: "#6b6b6b" }}>{item.sub}</p>
             </div>
 
-            {/* Badge / chevron */}
+            {/* Badge + chevron */}
             <div className="flex items-center gap-2">
               {item.badge && (
                 <span
@@ -267,12 +140,7 @@ export default function MorePage() {
                   {item.badge}
                 </span>
               )}
-              <i
-                className={`fa-solid fa-chevron-${
-                  ((item.label === "Tasks" && tasksOpen) || (item.isTonConnect && walletOpen)) ? "up" : "right"
-                }`}
-                style={{ color: "#444", fontSize: "12px" }}
-              />
+              <i className="fa-solid fa-chevron-right" style={{ color: "#444", fontSize: "12px" }} />
             </div>
           </button>
         ))}
