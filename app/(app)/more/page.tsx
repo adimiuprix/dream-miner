@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { TonConnectButton, useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -78,6 +79,7 @@ export default function MorePage() {
   const [walletOpen, setWalletOpen] = useState(false);
   const { user } = useAuth();
   const connectedAddress = useTonAddress(false);
+  const router = useRouter();
 
   return (
     <div className="flex flex-col min-h-full px-4 pt-4 pb-20" style={{ background: "var(--background)" }}>
@@ -85,17 +87,19 @@ export default function MorePage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <div
-            className="flex items-center justify-center rounded-xl mb-2"
+          <button
+            onClick={() => router.back()}
+            className="flex items-center justify-center rounded-xl mb-2 transition-opacity hover:opacity-75 active:scale-95"
             style={{
               width: 44, height: 44,
               background: "rgba(0,212,170,0.08)",
               border: "1px solid rgba(0,212,170,0.2)",
             }}
+            aria-label="Go back"
           >
-            <i className="fa-solid fa-bars" style={{ color: "var(--dm-green)", fontSize: "18px" }} />
-          </div>
-          <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>More</h1>
+            <i className="fa-solid fa-chevron-left" style={{ color: "var(--dm-green)", fontSize: "18px" }} />
+          </button>
+          <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>Back</h1>
           <p className="text-sm mt-0.5" style={{ color: "#6b6b6b" }}>Settings & features</p>
         </div>
         <button
