@@ -85,9 +85,9 @@ export default function TrophyPage() {
         <>
           <TopPodium top3={top3} />
 
-          {rest.length > 0 && (
+          {rest.length > 0 ? (
             <div
-              className="flex flex-col gap-0"
+              className="flex flex-col gap-0 mt-4"
               style={{ borderRadius: "1rem", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}
             >
               {rest.map((user, i) => (
@@ -109,7 +109,12 @@ export default function TrophyPage() {
                 />
               ))}
             </div>
-          )}
+          ) : leaderboard.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-2">
+              <i className="fa-solid fa-ranking-star" style={{ color: "#333", fontSize: "28px" }} />
+              <p className="text-sm" style={{ color: "#555" }}>No rankings yet. Start mining!</p>
+            </div>
+          ) : null}
         </>
       )}
 
