@@ -1,132 +1,29 @@
-/* TON Connect Button Custom Styling for Dream Miner */
+/*
+ * TonConnect UI — supplemental CSS overrides for Dream Miner
+ *
+ * Primary theming is handled via uiPreferences.colorsSet in TonConnectProvider.tsx.
+ * This file only handles layout/geometry tweaks that are not available via the JS API.
+ */
 
-/* Override TON Connect default styles to match Dream Miner theme */
-
-:root {
-  --tc-theme: dark;
-}
-
-/* TON Connect Button */
-div[data-tc-wallets-modal-container] button {
-  background: linear-gradient(135deg, #00d4aa 0%, #00a383 100%) !important;
-  border-radius: 12px !important;
-  font-weight: 600 !important;
-  transition: all 0.2s !important;
-}
-
-div[data-tc-wallets-modal-container] button:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 20px rgba(0, 212, 170, 0.4);
-}
-
-/* Modal Background */
-div[data-tc-wallets-modal-container] > div:first-child {
-  background: rgba(10, 10, 10, 0.95) !important;
+/* Modal border radius & backdrop */
+[data-tc-wallets-modal-container] > div:first-child {
   backdrop-filter: blur(8px) !important;
 }
 
-/* Modal Content */
-div[data-tc-wallets-modal-container] [role="dialog"] {
-  background: #161616 !important;
-  border: 1px solid rgba(0, 212, 170, 0.2) !important;
+[data-tc-wallets-modal-container] [role="dialog"] {
   border-radius: 24px !important;
+  box-shadow: 0 0 40px rgba(0, 212, 170, 0.08) !important;
 }
 
-/* Wallet Items */
-div[data-tc-wallets-modal-container] button[data-tc-wallet-item] {
-  background: #1a1a1a !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  border-radius: 16px !important;
-  transition: all 0.2s !important;
-}
-
-div[data-tc-wallets-modal-container] button[data-tc-wallet-item]:hover {
-  background: #1e1e1e !important;
-  border-color: rgba(0, 212, 170, 0.3) !important;
+/* Wallet list items — hover lift */
+[data-tc-wallets-modal-container] button[data-tc-wallet-item]:hover {
   transform: translateY(-2px);
+  transition: transform 0.15s ease;
 }
 
-/* Text Colors */
-div[data-tc-wallets-modal-container] h1,
-div[data-tc-wallets-modal-container] h2,
-div[data-tc-wallets-modal-container] h3,
-div[data-tc-wallets-modal-container] p {
-  color: #f0f0f0 !important;
-}
-
-div[data-tc-wallets-modal-container] button span {
-  color: #f0f0f0 !important;
-}
-
-/* Close Button */
-div[data-tc-wallets-modal-container] button[aria-label="Close"] {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-div[data-tc-wallets-modal-container] button[aria-label="Close"]:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* QR Code Container */
-div[data-tc-wallets-modal-container] [data-tc-qr-code] {
-  background: #fff !important;
+/* QR code — keep white background for scannability */
+[data-tc-wallets-modal-container] [data-tc-qr-code] {
+  background: #ffffff !important;
   border-radius: 16px !important;
   padding: 16px !important;
-}
-
-/* Loader */
-div[data-tc-wallets-modal-container] [data-tc-loader] {
-  color: #00d4aa !important;
-}
-
-/* Connect Button in More Page */
-div[data-tc-connect-button] button {
-  background: linear-gradient(135deg, #00d4aa 0%, #00a383 100%) !important;
-  color: #050505 !important;
-  font-weight: 700 !important;
-  padding: 12px 24px !important;
-  border-radius: 12px !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3) !important;
-  transition: all 0.2s !important;
-}
-
-div[data-tc-connect-button] button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(0, 212, 170, 0.5) !important;
-}
-
-/* Connected Wallet Display */
-div[data-tc-connect-button] button[data-tc-connected] {
-  background: rgba(0, 212, 170, 0.1) !important;
-  border: 1px solid rgba(0, 212, 170, 0.3) !important;
-  color: #00d4aa !important;
-}
-
-/* Dropdown Menu */
-div[data-tc-dropdown] {
-  background: #161616 !important;
-  border: 1px solid rgba(0, 212, 170, 0.2) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
-}
-
-div[data-tc-dropdown] button {
-  background: transparent !important;
-  color: #f0f0f0 !important;
-  padding: 12px 16px !important;
-}
-
-div[data-tc-dropdown] button:hover {
-  background: rgba(0, 212, 170, 0.08) !important;
-}
-
-/* Disconnect Button */
-div[data-tc-dropdown] button[data-tc-disconnect] {
-  color: #ef4444 !important;
-}
-
-div[data-tc-dropdown] button[data-tc-disconnect]:hover {
-  background: rgba(239, 68, 68, 0.1) !important;
 }
