@@ -19,16 +19,18 @@ interface Contract {
   };
 }
 
-/** Format milliseconds remaining → "23h 59m" / "5d 2h" */
+/** Format milliseconds remaining → "23h 59m" / "5d 2h" / "59m 30s" */
 function formatTimeLeft(msLeft: number): string {
   if (msLeft <= 0) return "Expired";
-  const totalMin = Math.floor(msLeft / 60_000);
-  const days  = Math.floor(totalMin / 1440);
-  const hours = Math.floor((totalMin % 1440) / 60);
-  const mins  = totalMin % 60;
+  const totalSec = Math.floor(msLeft / 1_000);
+  const days  = Math.floor(totalSec / 86_400);
+  const hours = Math.floor((totalSec % 86_400) / 3_600);
+  const mins  = Math.floor((totalSec % 3_600) / 60);
+  const secs  = totalSec % 60;
   if (days > 0)  return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  if (mins > 0)  return `${mins}m ${secs}s`;
+  return `${secs}s`;
 }
 
 /** Progress: how far through the contract duration (0–100) */
@@ -43,11 +45,19 @@ function calcProgress(expiresAt: number, durationDays: number): number {
 function ContractCard({ contract }: { contract: Contract }) {
   const [now, setNow] = useState(Date.now());
 
-  // Tick every minute to keep countdown fresh
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
+    const msLeft = contract.expiresAt - Date.now();
+
+    // Already expired — no need to tick
+    if (msLeft <= 0) return;
+
+    // Under 1 hour: tick every second for live countdown
+    // Over 1 hour: tick every minute is enough
+    const interval = msLeft < 60 * 60 * 1_000 ? 1_000 : 60_000;
+
+    const id = setInterval(() => setNow(Date.now()), interval);
     return () => clearInterval(id);
-  }, []);
+  }, [contract.expiresAt]);
 
   const totalPower  = contract.power + contract.bonus;
   const hPerDay     = ((totalPower / 100_000) * 86_400);
