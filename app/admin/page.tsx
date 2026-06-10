@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/prisma";
 
 async function getStats() {
-  const [totalUsers, totalContracts, activeContracts, totalTransactions, completedTx, totalSwaps] =
+  const [totalUsers, totalContracts, activeContracts, completedTx, totalSwaps] =
     await Promise.all([
       prisma.user.count(),
       prisma.contract.count(),
       prisma.contract.count({ where: { status: "ACTIVE" } }),
-      prisma.transaction.count(),
       prisma.transaction.count({ where: { status: "COMPLETED", type: "PURCHASE_POWER" } }),
       prisma.swap.count({ where: { status: "COMPLETED" } }),
     ]);
@@ -16,50 +15,111 @@ async function getStats() {
     _sum: { amount: true },
   });
 
-  return {
-    totalUsers,
-    totalContracts,
-    activeContracts,
-    totalTransactions,
-    completedTx,
-    totalSwaps,
-    totalRevenue: revenue._sum.amount ?? 0,
-  };
+  const recentUsers = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { firstName: true, username: true, createdAt: true },
+  });
+
+  return { totalUsers, totalContracts, activeContracts, completedTx, totalSwaps, totalRevenue: revenue._sum.amount ?? 0, recentUsers };
 }
 
 export default async function AdminDashboard() {
   const stats = await getStats();
 
   const cards = [
-    { label: "Total Users",        value: stats.totalUsers.toLocaleString(),          icon: "fa-solid fa-users",          color: "#3b82f6" },
-    { label: "Active Contracts",   value: stats.activeContracts.toLocaleString(),     icon: "fa-solid fa-file-contract",  color: "var(--dm-green)" },
-    { label: "Total Contracts",    value: stats.totalContracts.toLocaleString(),      icon: "fa-solid fa-box",            color: "#8b5cf6" },
-    { label: "Completed Purchases",value: stats.completedTx.toLocaleString(),         icon: "fa-solid fa-receipt",        color: "#f5a623" },
-    { label: "Total Swaps",        value: stats.totalSwaps.toLocaleString(),          icon: "fa-solid fa-arrows-rotate",  color: "#ec4899" },
-    { label: "Total Revenue (TON)",value: stats.totalRevenue.toFixed(4) + " TON",     icon: "fa-solid fa-coins",          color: "#f5a623" },
+    {
+      label: "Total Users",
+      value: stats.totalUsers.toLocaleString(),
+      icon: "fa-solid fa-users",
+      iconBg: "rgba(59,130,246,0.15)",
+      iconColor: "#3b82f6",
+    },
+    {
+      label: "Active Contracts",
+      value: stats.activeContracts.toLocaleString(),
+      icon: "fa-solid fa-file-contract",
+      iconBg: "rgba(16,185,129,0.15)",
+      iconColor: "#10b981",
+    },
+    {
+      label: "Total Contracts",
+      value: stats.totalContracts.toLocaleString(),
+      icon: "fa-solid fa-box",
+      iconBg: "rgba(139,92,246,0.15)",
+      iconColor: "#8b5cf6",
+    },
+    {
+      label: "Purchases",
+      value: stats.completedTx.toLocaleString(),
+      icon: "fa-solid fa-receipt",
+      iconBg: "rgba(245,158,11,0.15)",
+      iconColor: "#f59e0b",
+    },
+    {
+      label: "Completed Swaps",
+      value: stats.totalSwaps.toLocaleString(),
+      icon: "fa-solid fa-arrows-rotate",
+      iconBg: "rgba(236,72,153,0.15)",
+      iconColor: "#ec4899",
+    },
+    {
+      label: "Revenue",
+      value: stats.totalRevenue.toFixed(2) + " TON",
+      icon: "fa-solid fa-coins",
+      iconBg: "rgba(245,158,11,0.15)",
+      iconColor: "#f59e0b",
+    },
   ];
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>Dashboard</h1>
-        <p className="text-sm mt-1" style={{ color: "#555" }}>Overview of Dream Miner</p>
+    <div className="admin-content">
+      {/* Page header */}
+      <div className="admin-page-header">
+        <div>
+          <h1 className="admin-page-title">Dashboard</h1>
+          <p className="admin-page-desc">Overview of Dream Miner platform</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      {/* Stat cards */}
+      <div className="admin-stats-grid">
         {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-2xl p-5"
-            style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm" style={{ color: "#555" }}>{card.label}</p>
-              <i className={card.icon} style={{ color: card.color, fontSize: "16px" }} />
+          <div key={card.label} className="admin-stat-card">
+            <div className="admin-stat-label">
+              {card.label}
+              <div
+                className="admin-stat-icon"
+                style={{ background: card.iconBg }}
+              >
+                <i className={card.icon} style={{ color: card.iconColor }} />
+              </div>
             </div>
-            <p className="text-2xl font-extrabold" style={{ color: "#fff" }}>{card.value}</p>
+            <div className="admin-stat-value">{card.value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Recent users */}
+      <div className="admin-info-card">
+        <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: "var(--admin-text)" }}>
+          Recent Users
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {stats.recentUsers.map((u) => (
+            <div
+              key={u.createdAt.toISOString()}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+            >
+              <span style={{ fontSize: 13, color: "var(--admin-text)" }}>
+                {u.username ? `@${u.username}` : u.firstName}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
+                {new Date(u.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

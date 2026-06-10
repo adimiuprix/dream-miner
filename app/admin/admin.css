@@ -1,0 +1,308 @@
+/* ─── Admin Design System ────────────────────────────────────────────────── */
+/* Completely independent from the mini app styles.                          */
+
+:root {
+  --admin-bg:          #0f1117;
+  --admin-surface:     #1a1d27;
+  --admin-surface-2:   #21253a;
+  --admin-border:      rgba(255, 255, 255, 0.08);
+  --admin-border-2:    rgba(255, 255, 255, 0.04);
+  --admin-text:        #f1f3f9;
+  --admin-text-muted:  #6b7280;
+  --admin-text-subtle: #374151;
+
+  --admin-accent:      #6366f1;   /* indigo */
+  --admin-accent-2:    #8b5cf6;   /* violet */
+  --admin-success:     #10b981;
+  --admin-warning:     #f59e0b;
+  --admin-danger:      #ef4444;
+  --admin-info:        #3b82f6;
+
+  --admin-sidebar-w:   224px;
+  --admin-radius:      10px;
+  --admin-radius-sm:   6px;
+}
+
+/* ─── Reset for admin scope ─────────────────────────────────────────────── */
+.admin-root {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  min-height: 100vh;
+}
+
+/* ─── Sidebar ────────────────────────────────────────────────────────────── */
+.admin-sidebar {
+  width: var(--admin-sidebar-w);
+  flex-shrink: 0;
+  background: var(--admin-surface);
+  border-right: 1px solid var(--admin-border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.admin-sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-sidebar-logo-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.admin-sidebar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--admin-text);
+  line-height: 1.2;
+}
+
+.admin-sidebar-subtitle {
+  font-size: 11px;
+  color: var(--admin-text-muted);
+}
+
+.admin-nav {
+  padding: 12px 10px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--admin-radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.admin-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--admin-text);
+}
+
+.admin-nav-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--admin-accent);
+  font-weight: 600;
+}
+
+.admin-nav-item i {
+  width: 16px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.admin-nav-section {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--admin-text-subtle);
+  padding: 12px 12px 4px;
+}
+
+.admin-sidebar-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--admin-border);
+  font-size: 11px;
+  color: var(--admin-text-subtle);
+}
+
+/* ─── Main area ──────────────────────────────────────────────────────────── */
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.admin-topbar {
+  height: 56px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-topbar-subtitle {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+}
+
+.admin-content {
+  padding: 28px;
+}
+
+/* ─── Page header ────────────────────────────────────────────────────────── */
+.admin-page-header {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--admin-text);
+  line-height: 1.3;
+}
+
+.admin-page-desc {
+  font-size: 13px;
+  color: var(--admin-text-muted);
+  margin-top: 3px;
+}
+
+/* ─── Stat cards ─────────────────────────────────────────────────────────── */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.admin-stat-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 20px;
+}
+
+.admin-stat-label {
+  font-size: 12px;
+  color: var(--admin-text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--admin-text);
+  line-height: 1;
+}
+
+.admin-stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────── */
+.admin-table-wrap {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  overflow: hidden;
+}
+
+.admin-table-head {
+  display: grid;
+  padding: 10px 16px;
+  background: var(--admin-surface-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--admin-text-muted);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-table-row {
+  display: grid;
+  padding: 11px 16px;
+  font-size: 13px;
+  align-items: center;
+  border-bottom: 1px solid var(--admin-border-2);
+  transition: background 0.1s;
+}
+
+.admin-table-row:last-child {
+  border-bottom: none;
+}
+
+.admin-table-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────────────── */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-badge-success { background: rgba(16,185,129,0.12); color: #10b981; }
+.admin-badge-warning { background: rgba(245,158,11,0.12);  color: #f59e0b; }
+.admin-badge-danger  { background: rgba(239,68,68,0.12);   color: #ef4444; }
+.admin-badge-muted   { background: rgba(107,114,128,0.12); color: #6b7280; }
+.admin-badge-info    { background: rgba(59,130,246,0.12);  color: #3b82f6; }
+.admin-badge-accent  { background: rgba(99,102,241,0.12);  color: #6366f1; }
+
+/* ─── Info card ──────────────────────────────────────────────────────────── */
+.admin-info-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 16px 20px;
+}
+
+/* ─── Divider ────────────────────────────────────────────────────────────── */
+.admin-divider {
+  height: 1px;
+  background: var(--admin-border);
+  margin: 20px 0;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+.admin-root ::-webkit-scrollbar { width: 6px; height: 6px; }
+.admin-root ::-webkit-scrollbar-track { background: transparent; }
+.admin-root ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }

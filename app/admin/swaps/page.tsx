@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+const COLS = "1.5fr 1fr 1fr 1fr 1fr 1fr";
+
 export default async function AdminSwaps() {
   const swaps = await prisma.swap.findMany({
     orderBy: { createdAt: "desc" },
@@ -13,33 +15,39 @@ export default async function AdminSwaps() {
     .filter((s) => s.status === "COMPLETED")
     .reduce((sum, s) => sum + s.tonReceived, 0);
 
+  const totalHashes = swaps
+    .filter((s) => s.status === "COMPLETED")
+    .reduce((sum, s) => sum + s.hashesSwapped, 0);
+
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-start justify-between">
+    <div className="admin-content">
+      <div className="admin-page-header">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>Swaps</h1>
-          <p className="text-sm mt-1" style={{ color: "#555" }}>Latest 100 swap records</p>
+          <h1 className="admin-page-title">Swaps</h1>
+          <p className="admin-page-desc">Latest 100 swap records</p>
         </div>
-        <div
-          className="rounded-xl px-4 py-2 text-right"
-          style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <p className="text-xs" style={{ color: "#555" }}>Total TON paid out</p>
-          <p className="text-lg font-extrabold" style={{ color: "#f5a623" }}>
-            {totalTon.toFixed(4)} TON
-          </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div className="admin-info-card" style={{ padding: "10px 18px", textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>TON Paid Out</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>
+              {totalTon.toFixed(4)} TON
+            </div>
+          </div>
+          <div className="admin-info-card" style={{ padding: "10px 18px", textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>Hashes Swapped</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>
+              {totalHashes >= 1_000_000
+                ? (totalHashes / 1_000_000).toFixed(1) + "M"
+                : totalHashes >= 1_000
+                  ? (totalHashes / 1_000).toFixed(1) + "K"
+                  : totalHashes.toFixed(0)}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-        <div
-          className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{
-            background: "#1a1a1a",
-            color: "#555",
-            gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1fr",
-          }}
-        >
+      <div className="admin-table-wrap">
+        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
           <span>User</span>
           <span>Hashes</span>
           <span>TON Received</span>
@@ -48,46 +56,37 @@ export default async function AdminSwaps() {
           <span>Date</span>
         </div>
 
-        {swaps.map((swap, i) => {
+        {swaps.map((swap) => {
           const name = swap.user.username ? `@${swap.user.username}` : swap.user.firstName;
-          const statusColor = swap.status === "COMPLETED"
-            ? "var(--dm-green)"
-            : swap.status === "FAILED"
-              ? "#ef4444"
-              : "#555";
-
           return (
-            <div
-              key={swap.id}
-              className="grid gap-4 px-4 py-3 text-sm items-center"
-              style={{
-                background: i % 2 === 0 ? "#161616" : "#141414",
-                borderTop: "1px solid rgba(255,255,255,0.04)",
-                gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1fr",
-              }}
-            >
-              <div className="min-w-0">
-                <p className="font-semibold truncate" style={{ color: "#fff" }}>{name}</p>
-                <p className="text-xs truncate" style={{ color: "#555" }}>{swap.userId}</p>
+            <div key={swap.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: "var(--admin-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {swap.userId}
+                </div>
               </div>
               <span style={{ color: "#3b82f6", fontWeight: 700 }}>
                 {swap.hashesSwapped >= 1_000
                   ? (swap.hashesSwapped / 1_000).toFixed(1) + "K"
                   : swap.hashesSwapped.toFixed(2)}
               </span>
-              <span style={{ color: "#f5a623", fontWeight: 700 }}>
-                {swap.tonReceived.toFixed(6)} TON
+              <span style={{ color: "#f59e0b", fontWeight: 700 }}>
+                {swap.tonReceived.toFixed(6)}
               </span>
-              <span style={{ color: "#555", fontSize: "11px" }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--admin-text-muted)" }}>
                 {swap.exchangeRate.toFixed(8)}
               </span>
-              <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full inline-block"
-                style={{ color: statusColor, background: `${statusColor}22` }}
-              >
-                {swap.status}
+              <span>
+                {swap.status === "COMPLETED"
+                  ? <span className="admin-badge admin-badge-success">Completed</span>
+                  : swap.status === "FAILED"
+                    ? <span className="admin-badge admin-badge-danger">Failed</span>
+                    : <span className="admin-badge admin-badge-muted">{swap.status}</span>}
               </span>
-              <span style={{ color: "#555", fontSize: "12px" }}>
+              <span style={{ color: "var(--admin-text-muted)", fontSize: 12 }}>
                 {new Date(swap.createdAt).toLocaleDateString()}
               </span>
             </div>

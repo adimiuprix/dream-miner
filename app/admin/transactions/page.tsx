@@ -1,5 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
+const COLS = "1.5fr 1fr 1fr 1fr 1.8fr 1fr";
+
+const statusBadge: Record<string, string> = {
+  COMPLETED: "admin-badge-success",
+  PENDING:   "admin-badge-warning",
+  FAILED:    "admin-badge-danger",
+  CANCELLED: "admin-badge-muted",
+};
+
 export default async function AdminTransactions() {
   const transactions = await prisma.transaction.findMany({
     orderBy: { createdAt: "desc" },
@@ -9,29 +18,27 @@ export default async function AdminTransactions() {
     },
   });
 
-  const statusColor: Record<string, string> = {
-    COMPLETED: "var(--dm-green)",
-    PENDING:   "#f5a623",
-    FAILED:    "#ef4444",
-    CANCELLED: "#555",
-  };
+  const totalRevenue = transactions
+    .filter((t) => t.status === "COMPLETED" && t.type === "PURCHASE_POWER")
+    .reduce((s, t) => s + t.amount, 0);
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: "#fff" }}>Transactions</h1>
-        <p className="text-sm mt-1" style={{ color: "#555" }}>Latest 100 transactions</p>
+    <div className="admin-content">
+      <div className="admin-page-header">
+        <div>
+          <h1 className="admin-page-title">Transactions</h1>
+          <p className="admin-page-desc">Latest 100 transactions</p>
+        </div>
+        <div className="admin-info-card" style={{ textAlign: "right", padding: "12px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>Total Revenue</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>
+            {totalRevenue.toFixed(4)} TON
+          </div>
+        </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-        <div
-          className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-          style={{
-            background: "#1a1a1a",
-            color: "#555",
-            gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1.5fr 1fr",
-          }}
-        >
+      <div className="admin-table-wrap">
+        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
           <span>User</span>
           <span>Type</span>
           <span>Amount</span>
@@ -40,41 +47,32 @@ export default async function AdminTransactions() {
           <span>Date</span>
         </div>
 
-        {transactions.map((tx, i) => {
+        {transactions.map((tx) => {
           const name = tx.user.username ? `@${tx.user.username}` : tx.user.firstName;
           return (
-            <div
-              key={tx.id}
-              className="grid gap-4 px-4 py-3 text-sm items-center"
-              style={{
-                background: i % 2 === 0 ? "#161616" : "#141414",
-                borderTop: "1px solid rgba(255,255,255,0.04)",
-                gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1.5fr 1fr",
-              }}
-            >
-              <div className="min-w-0">
-                <p className="font-semibold truncate" style={{ color: "#fff" }}>{name}</p>
-                <p className="text-xs truncate" style={{ color: "#555" }}>{tx.userId}</p>
+            <div key={tx.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: "var(--admin-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {tx.userId}
+                </div>
               </div>
-              <span style={{ color: "#888", fontSize: "11px" }}>{tx.type}</span>
-              <span style={{ color: "#f5a623", fontWeight: 700 }}>{tx.amount} TON</span>
-              <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full inline-block"
-                style={{
-                  color: statusColor[tx.status] ?? "#888",
-                  background: `${statusColor[tx.status]}22` ?? "transparent",
-                }}
-              >
+              <span style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>
+                {tx.type.replace("_", " ")}
+              </span>
+              <span style={{ color: "#f59e0b", fontWeight: 700 }}>{tx.amount} TON</span>
+              <span className={`admin-badge ${statusBadge[tx.status] ?? "admin-badge-muted"}`}>
                 {tx.status}
               </span>
               <span
-                className="text-xs font-mono truncate"
-                style={{ color: "#555" }}
+                style={{ fontSize: 11, fontFamily: "monospace", color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                 title={tx.txHash ?? ""}
               >
-                {tx.txHash ? tx.txHash.slice(0, 20) + "..." : "—"}
+                {tx.txHash ? tx.txHash.slice(0, 24) + "…" : "—"}
               </span>
-              <span style={{ color: "#555", fontSize: "12px" }}>
+              <span style={{ color: "var(--admin-text-muted)", fontSize: 12 }}>
                 {new Date(tx.createdAt).toLocaleDateString()}
               </span>
             </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AdminSidebar from "./_components/AdminSidebar";
+import "./admin.css";
 
 export const metadata: Metadata = {
   title: "Dream Miner — Admin",
@@ -8,10 +9,10 @@ export const metadata: Metadata = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen" style={{ background: "#0a0a0a", color: "#e5e5e5" }}>
-      <div className="flex min-h-screen">
+    <div className="admin-root">
+      <div style={{ display: "flex", minHeight: "100vh" }}>
         <AdminSidebar />
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="admin-main">
           {children}
         </main>
       </div>
