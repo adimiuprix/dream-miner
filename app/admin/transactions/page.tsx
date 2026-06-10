@@ -1,21 +1,20 @@
 import { prisma } from "@/lib/prisma";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 
-const COLS = "1.5fr 1fr 1fr 1fr 1.8fr 1fr";
-
-const statusBadge: Record<string, string> = {
-  COMPLETED: "admin-badge-success",
-  PENDING:   "admin-badge-warning",
-  FAILED:    "admin-badge-danger",
-  CANCELLED: "admin-badge-muted",
+const statusVariant: Record<string, BadgeVariant> = {
+  COMPLETED: "success",
+  PENDING:   "warning",
+  FAILED:    "destructive",
+  CANCELLED: "secondary",
 };
 
 export default async function AdminTransactions() {
   const transactions = await prisma.transaction.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
-    include: {
-      user: { select: { firstName: true, username: true } },
-    },
+    include: { user: { select: { firstName: true, username: true } } },
   });
 
   const totalRevenue = transactions
@@ -29,56 +28,66 @@ export default async function AdminTransactions() {
           <h1 className="admin-page-title">Transactions</h1>
           <p className="admin-page-desc">Latest 100 transactions</p>
         </div>
-        <div className="admin-info-card" style={{ textAlign: "right", padding: "12px 18px" }}>
-          <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>Total Revenue</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>
-            {totalRevenue.toFixed(4)} TON
-          </div>
-        </div>
+        <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-1 !py-3">
+          <CardContent className="!px-5">
+            <p className="text-xs" style={{ color: "var(--admin-text-muted)" }}>Total Revenue</p>
+            <p className="text-xl font-extrabold" style={{ color: "#f59e0b" }}>
+              {totalRevenue.toFixed(4)} TON
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="admin-table-wrap">
-        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
-          <span>User</span>
-          <span>Type</span>
-          <span>Amount</span>
-          <span>Status</span>
-          <span>TX Hash</span>
-          <span>Date</span>
-        </div>
-
-        {transactions.map((tx) => {
-          const name = tx.user.username ? `@${tx.user.username}` : tx.user.firstName;
-          return (
-            <div key={tx.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: "var(--admin-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {name}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {tx.userId}
-                </div>
-              </div>
-              <span style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>
-                {tx.type.replace("_", " ")}
-              </span>
-              <span style={{ color: "#f59e0b", fontWeight: 700 }}>{tx.amount} TON</span>
-              <span className={`admin-badge ${statusBadge[tx.status] ?? "admin-badge-muted"}`}>
-                {tx.status}
-              </span>
-              <span
-                style={{ fontSize: 11, fontFamily: "monospace", color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                title={tx.txHash ?? ""}
-              >
-                {tx.txHash ? tx.txHash.slice(0, 24) + "…" : "—"}
-              </span>
-              <span style={{ color: "var(--admin-text-muted)", fontSize: 12 }}>
-                {new Date(tx.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-0 !py-0">
+        <Table variant="striped">
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>TX Hash</TableHead>
+              <TableHead>Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((tx) => {
+              const name = tx.user.username ? `@${tx.user.username}` : tx.user.firstName;
+              return (
+                <TableRow key={tx.id}>
+                  <TableCell>
+                    <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>{name}</div>
+                    <div className="text-xs font-mono" style={{ color: "var(--admin-text-muted)" }}>{tx.userId.slice(0,12)}…</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                      {tx.type.replace(/_/g, " ")}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-sm" style={{ color: "#f59e0b" }}>{tx.amount} TON</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[tx.status] ?? "secondary"} pill>
+                      {tx.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-mono" style={{ color: "var(--admin-text-muted)" }} title={tx.txHash ?? ""}>
+                      {tx.txHash ? tx.txHash.slice(0, 20) + "…" : "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                      {new Date(tx.createdAt).toLocaleDateString()}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

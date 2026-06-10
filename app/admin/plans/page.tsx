@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-
-const COLS = "1.5fr 1fr 1fr 1fr 0.7fr 0.8fr 0.5fr 0.5fr";
+import { Card } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 export default async function AdminPlans() {
   const plans = await prisma.plan.findMany({
@@ -17,52 +18,63 @@ export default async function AdminPlans() {
         </div>
       </div>
 
-      <div className="admin-table-wrap">
-        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
-          <span>Name</span>
-          <span>Power</span>
-          <span>Bonus</span>
-          <span>Price</span>
-          <span>Duration</span>
-          <span>Contracts</span>
-          <span>Active</span>
-          <span>Free</span>
-        </div>
-
-        {plans.map((plan) => (
-          <div key={plan.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
-            <div>
-              <div style={{ fontWeight: 600, color: "var(--admin-text)" }}>{plan.name}</div>
-              <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>{plan.slug}</div>
-            </div>
-            <span style={{ color: "var(--admin-text)", fontWeight: 600 }}>
-              {plan.power.toLocaleString()}
-            </span>
-            <span style={{ color: plan.bonus > 0 ? "#10b981" : "var(--admin-text-muted)" }}>
-              {plan.bonus > 0 ? `+${plan.bonus.toLocaleString()}` : "—"}
-            </span>
-            <span style={{ color: "#f59e0b", fontWeight: 700 }}>
-              {plan.price === 0 ? (
-                <span className="admin-badge admin-badge-info">FREE</span>
-              ) : (
-                `${plan.price} TON`
-              )}
-            </span>
-            <span style={{ color: "var(--admin-text-muted)" }}>{plan.duration}d</span>
-            <span style={{ color: "var(--admin-text-muted)" }}>{plan._count.contracts}</span>
-            <span>
-              {plan.isActive
-                ? <span className="admin-badge admin-badge-success">Yes</span>
-                : <span className="admin-badge admin-badge-muted">No</span>}
-            </span>
-            <span>
-              {plan.isFree
-                ? <span className="admin-badge admin-badge-info">Yes</span>
-                : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
-            </span>
-          </div>
-        ))}
-      </div>
+      <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-0 !py-0">
+        <Table variant="striped">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Power</TableHead>
+              <TableHead>Bonus</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Contracts</TableHead>
+              <TableHead>Visible</TableHead>
+              <TableHead>Free</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {plans.map((plan) => (
+              <TableRow key={plan.id}>
+                <TableCell>
+                  <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>{plan.name}</div>
+                  <div className="text-xs" style={{ color: "var(--admin-text-muted)" }}>{plan.slug}</div>
+                </TableCell>
+                <TableCell>
+                  <span className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>
+                    {plan.power.toLocaleString()}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  {plan.bonus > 0
+                    ? <Badge variant="success" pill>+{plan.bonus.toLocaleString()}</Badge>
+                    : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
+                </TableCell>
+                <TableCell>
+                  {plan.price === 0
+                    ? <Badge variant="info" pill>FREE</Badge>
+                    : <span className="font-bold text-sm" style={{ color: "#f59e0b" }}>{plan.price} TON</span>}
+                </TableCell>
+                <TableCell>
+                  <span style={{ color: "var(--admin-text-muted)" }}>{plan.duration}d</span>
+                </TableCell>
+                <TableCell>
+                  <span style={{ color: "var(--admin-text-muted)" }}>{plan._count.contracts}</span>
+                </TableCell>
+                <TableCell>
+                  {plan.isActive
+                    ? <Badge variant="success" pill>Yes</Badge>
+                    : <Badge variant="secondary" pill>Hidden</Badge>}
+                </TableCell>
+                <TableCell>
+                  {plan.isFree
+                    ? <Badge variant="info" pill>Yes</Badge>
+                    : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

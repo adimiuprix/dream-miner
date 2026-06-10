@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 function fmtPower(p: number) {
   if (p >= 1_000_000) return (p / 1_000_000).toFixed(1) + "M";
   if (p >= 1_000)     return (p / 1_000).toFixed(1) + "K";
   return p > 0 ? p.toString() : "—";
 }
-
-const COLS = "2fr 1.2fr 1fr 0.8fr 0.8fr 1fr";
 
 export default async function AdminUsers() {
   const users = await prisma.user.findMany({
@@ -18,6 +20,8 @@ export default async function AdminUsers() {
     take: 100,
   });
 
+  const COLORS = ["#6366f1","#3b82f6","#10b981","#f59e0b","#ec4899","#8b5cf6","#ef4444","#14b8a6"];
+
   return (
     <div className="admin-content">
       <div className="admin-page-header">
@@ -27,47 +31,75 @@ export default async function AdminUsers() {
         </div>
       </div>
 
-      <div className="admin-table-wrap">
-        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
-          <span>User</span>
-          <span>Telegram ID</span>
-          <span>Active Power</span>
-          <span>Contracts</span>
-          <span>Referrals</span>
-          <span>Joined</span>
-        </div>
+      <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-0 !py-0">
+        <Table variant="striped">
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Telegram ID</TableHead>
+              <TableHead>Active Power</TableHead>
+              <TableHead>Contracts</TableHead>
+              <TableHead>Referrals</TableHead>
+              <TableHead>Wallet</TableHead>
+              <TableHead>Joined</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user, i) => {
+              const activePower = user.contracts.reduce((s, c) => s + c.power + c.bonus, 0);
+              const name = user.username
+                ? `@${user.username}`
+                : `${user.firstName} ${user.lastName ?? ""}`.trim();
+              const initials = name.replace("@","").slice(0,2).toUpperCase();
 
-        {users.map((user) => {
-          const activePower = user.contracts.reduce((s, c) => s + c.power + c.bonus, 0);
-          const name = user.username
-            ? `@${user.username}`
-            : `${user.firstName} ${user.lastName ?? ""}`.trim();
-
-          return (
-            <div key={user.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: "var(--admin-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {name}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {user.id}
-                </div>
-              </div>
-              <span style={{ color: "var(--admin-text-muted)", fontFamily: "monospace", fontSize: 12 }}>
-                {String(user.telegramId)}
-              </span>
-              <span style={{ color: "#10b981", fontWeight: 700 }}>
-                {fmtPower(activePower)}
-              </span>
-              <span style={{ color: "var(--admin-text-muted)" }}>{user._count.contracts}</span>
-              <span style={{ color: "var(--admin-text-muted)" }}>{user._count.referrals}</span>
-              <span style={{ color: "var(--admin-text-muted)", fontSize: 12 }}>
-                {new Date(user.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+              return (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar size="sm">
+                        <AvatarFallback
+                          className="text-xs font-bold"
+                          style={{ background: `${COLORS[i % COLORS.length]}22`, color: COLORS[i % COLORS.length] }}
+                        >
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>{name}</div>
+                        <div className="text-xs font-mono" style={{ color: "var(--admin-text-muted)" }}>{user.id.slice(0,12)}…</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                      {String(user.telegramId)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="success" pill>{fmtPower(activePower)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span style={{ color: "var(--admin-text-muted)" }}>{user._count.contracts}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span style={{ color: "var(--admin-text-muted)" }}>{user._count.referrals}</span>
+                  </TableCell>
+                  <TableCell>
+                    {user.walletAddress
+                      ? <Badge variant="info" pill>Connected</Badge>
+                      : <Badge variant="secondary" pill>None</Badge>}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }

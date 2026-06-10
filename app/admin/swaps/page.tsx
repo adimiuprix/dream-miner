@@ -1,23 +1,30 @@
 import { prisma } from "@/lib/prisma";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 
-const COLS = "1.5fr 1fr 1fr 1fr 1fr 1fr";
+const statusVariant: Record<string, BadgeVariant> = {
+  COMPLETED: "success",
+  PENDING:   "warning",
+  FAILED:    "destructive",
+  CANCELLED: "secondary",
+};
+
+function fmtHashes(h: number) {
+  if (h >= 1_000_000) return (h / 1_000_000).toFixed(1) + "M";
+  if (h >= 1_000)     return (h / 1_000).toFixed(1) + "K";
+  return h.toFixed(2);
+}
 
 export default async function AdminSwaps() {
   const swaps = await prisma.swap.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
-    include: {
-      user: { select: { firstName: true, username: true } },
-    },
+    include: { user: { select: { firstName: true, username: true } } },
   });
 
-  const totalTon = swaps
-    .filter((s) => s.status === "COMPLETED")
-    .reduce((sum, s) => sum + s.tonReceived, 0);
-
-  const totalHashes = swaps
-    .filter((s) => s.status === "COMPLETED")
-    .reduce((sum, s) => sum + s.hashesSwapped, 0);
+  const totalTon    = swaps.filter((s) => s.status === "COMPLETED").reduce((s, sw) => s + sw.tonReceived, 0);
+  const totalHashes = swaps.filter((s) => s.status === "COMPLETED").reduce((s, sw) => s + sw.hashesSwapped, 0);
 
   return (
     <div className="admin-content">
@@ -26,73 +33,74 @@ export default async function AdminSwaps() {
           <h1 className="admin-page-title">Swaps</h1>
           <p className="admin-page-desc">Latest 100 swap records</p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <div className="admin-info-card" style={{ padding: "10px 18px", textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>TON Paid Out</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>
-              {totalTon.toFixed(4)} TON
-            </div>
-          </div>
-          <div className="admin-info-card" style={{ padding: "10px 18px", textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>Hashes Swapped</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#3b82f6" }}>
-              {totalHashes >= 1_000_000
-                ? (totalHashes / 1_000_000).toFixed(1) + "M"
-                : totalHashes >= 1_000
-                  ? (totalHashes / 1_000).toFixed(1) + "K"
-                  : totalHashes.toFixed(0)}
-            </div>
-          </div>
+        <div className="flex gap-3">
+          <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-1 !py-3 text-right">
+            <CardContent className="!px-5">
+              <p className="text-xs" style={{ color: "var(--admin-text-muted)" }}>TON Paid Out</p>
+              <p className="text-xl font-extrabold" style={{ color: "#f59e0b" }}>{totalTon.toFixed(4)}</p>
+            </CardContent>
+          </Card>
+          <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-1 !py-3 text-right">
+            <CardContent className="!px-5">
+              <p className="text-xs" style={{ color: "var(--admin-text-muted)" }}>Hashes Swapped</p>
+              <p className="text-xl font-extrabold" style={{ color: "#3b82f6" }}>{fmtHashes(totalHashes)}</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="admin-table-wrap">
-        <div className="admin-table-head" style={{ gridTemplateColumns: COLS }}>
-          <span>User</span>
-          <span>Hashes</span>
-          <span>TON Received</span>
-          <span>Rate</span>
-          <span>Status</span>
-          <span>Date</span>
-        </div>
-
-        {swaps.map((swap) => {
-          const name = swap.user.username ? `@${swap.user.username}` : swap.user.firstName;
-          return (
-            <div key={swap.id} className="admin-table-row" style={{ gridTemplateColumns: COLS }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: "var(--admin-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {name}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--admin-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {swap.userId}
-                </div>
-              </div>
-              <span style={{ color: "#3b82f6", fontWeight: 700 }}>
-                {swap.hashesSwapped >= 1_000
-                  ? (swap.hashesSwapped / 1_000).toFixed(1) + "K"
-                  : swap.hashesSwapped.toFixed(2)}
-              </span>
-              <span style={{ color: "#f59e0b", fontWeight: 700 }}>
-                {swap.tonReceived.toFixed(6)}
-              </span>
-              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--admin-text-muted)" }}>
-                {swap.exchangeRate.toFixed(8)}
-              </span>
-              <span>
-                {swap.status === "COMPLETED"
-                  ? <span className="admin-badge admin-badge-success">Completed</span>
-                  : swap.status === "FAILED"
-                    ? <span className="admin-badge admin-badge-danger">Failed</span>
-                    : <span className="admin-badge admin-badge-muted">{swap.status}</span>}
-              </span>
-              <span style={{ color: "var(--admin-text-muted)", fontSize: 12 }}>
-                {new Date(swap.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none !gap-0 !py-0">
+        <Table variant="striped">
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Hashes</TableHead>
+              <TableHead>TON Received</TableHead>
+              <TableHead>Rate</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {swaps.map((swap) => {
+              const name = swap.user.username ? `@${swap.user.username}` : swap.user.firstName;
+              return (
+                <TableRow key={swap.id}>
+                  <TableCell>
+                    <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>{name}</div>
+                    <div className="text-xs font-mono" style={{ color: "var(--admin-text-muted)" }}>{swap.userId.slice(0,12)}…</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-sm" style={{ color: "#3b82f6" }}>
+                      {fmtHashes(swap.hashesSwapped)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-bold text-sm" style={{ color: "#f59e0b" }}>
+                      {swap.tonReceived.toFixed(6)} TON
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-mono" style={{ color: "var(--admin-text-muted)" }}>
+                      {swap.exchangeRate.toFixed(8)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[swap.status] ?? "secondary"} pill>
+                      {swap.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                      {new Date(swap.createdAt).toLocaleDateString()}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
