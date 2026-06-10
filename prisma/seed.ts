@@ -32,9 +32,9 @@ async function main() {
       isFree: true,
     },
 
-    // ─── REFERRAL BONUS PLACEHOLDER ──────────────────────────────
+    // ─── BONUS PLACEHOLDER ───────────────────────────────────────
     // Not shown in shop (isActive: false). Used internally as planId
-    // for bonus contracts given to referrers.
+    // for all bonus contracts (referral bonuses, task rewards, etc.)
     {
       name: "Bonus",
       slug: "bonus",
@@ -43,7 +43,7 @@ async function main() {
       bonusPercent: 0,
       price: 0,
       duration: 1,
-      description: "Internal placeholder for referral bonus contracts",
+      description: "Internal placeholder for all bonus contracts",
       finalReturn: null,
       badge: null,
       badgeColor: null,

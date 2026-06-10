@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     const bonusContracts = await prisma.contract.findMany({
       where: {
         userId,
-        plan: { slug: "referral-bonus" },
+        plan: { slug: "bonus" },
       },
       select: { power: true },
     });

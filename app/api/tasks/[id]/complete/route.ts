@@ -111,7 +111,7 @@ export async function POST(
 
     // ── Award power via a bonus contract ─────────────────────────────────────
     const bonusPlan = await prisma.plan.findUnique({
-      where: { slug: "referral-bonus" },
+      where: { slug: "bonus" },
     });
 
     await prisma.$transaction(async (tx) => {

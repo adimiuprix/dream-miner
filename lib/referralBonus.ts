@@ -7,11 +7,11 @@ export const PURCHASE_BONUS_PERCENT = 0.5;          // 50% dari power plan downl
 export async function giveJoinBonus(referrerId: string): Promise<void> {
   try {
     const bonusPlan = await prisma.plan.findUnique({
-      where: { slug: "referral-bonus" },
+      where: { slug: "bonus" },
     });
 
     if (!bonusPlan) {
-      console.warn("[ReferralBonus] Plan 'referral-bonus' not found in DB. Run db:seed.");
+      console.warn("[ReferralBonus] Plan 'bonus' not found in DB. Run db:seed.");
       return;
     }
 
@@ -53,11 +53,11 @@ export async function givePurchaseBonus(
 ): Promise<void> {
   try {
     const bonusPlan = await prisma.plan.findUnique({
-      where: { slug: "referral-bonus" },
+      where: { slug: "bonus" },
     });
 
     if (!bonusPlan) {
-      console.warn("[ReferralBonus] Plan 'referral-bonus' not found in DB. Run db:seed.");
+      console.warn("[ReferralBonus] Plan 'bonus' not found in DB. Run db:seed.");
       return;
     }
 
