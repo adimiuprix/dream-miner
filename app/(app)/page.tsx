@@ -23,7 +23,7 @@ export default function HomePage() {
 
   async function claimFreePlan() {
     if (!user) {
-      alert("Kamu harus login terlebih dahulu.");
+      alert("Please log in first.");
       return;
     }
 
@@ -38,17 +38,17 @@ export default function HomePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error ?? "Gagal mengklaim free plan.");
+        alert(data.error ?? "Failed to claim free plan.");
         return;
       }
 
       // Refresh mining stats secara langsung tanpa reload halaman
       await refresh();
 
-      alert("Free plan berhasil diaktifkan!");
+      alert("Free plan activated!");
     } catch (error) {
       console.error("claimFreePlan error:", error);
-      alert("Terjadi kesalahan saat mengklaim free plan.");
+      alert("Something went wrong. Please try again.");
     } finally {
       setClaimLoading(false);
     }
