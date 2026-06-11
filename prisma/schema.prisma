@@ -188,6 +188,35 @@ model UserTask {
   @@index([completedAt])
 }
 
+// ─── App Settings (key-value store) ─────────────────────────────────────────
+model AppSetting {
+  key         String   @id                    // Unique setting key, e.g. "hash_to_ton_rate"
+  value       String                          // Value stored as string (parse on use)
+  type        SettingType @default(STRING)    // Data type hint for UI rendering
+  group       SettingGroup                    // Grouping for admin UI sections
+  label       String                          // Human-readable label
+  description String?                         // Optional hint text
+  isSecret    Boolean  @default(false)        // Mask value in UI (passwords, tokens, mnemonics)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([group])
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  TEXT      // multiline
+}
+
+enum SettingGroup {
+  APP_CONFIG
+  HOT_WALLET
+  TELEGRAM
+}
+
 enum TaskType {
   SOCIAL     // Follow/join social media
   REFERRAL   // Invite friends

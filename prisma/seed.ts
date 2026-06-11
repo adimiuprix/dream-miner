@@ -291,6 +291,147 @@ async function main() {
 
   const totalTasks = await prisma.task.count();
   console.log(`\n📊 Total tasks in DB: ${totalTasks}`);
+
+  // ─── App Settings ─────────────────────────────────────────────────────────
+  console.log("\n🌱 Seeding app settings...\n");
+
+  const settings = [
+    // ── APP_CONFIG ─────────────────────────────────────────────────────────
+    {
+      key: "hash_to_ton_rate",
+      value: "0.0000144",
+      type: "NUMBER" as const,
+      group: "APP_CONFIG" as const,
+      label: "Hash → TON Rate",
+      description: "1 HASH = X TON. Current: 1,000 HASHES = 0.0144 TON",
+      isSecret: false,
+    },
+    {
+      key: "minimum_swap_hashes",
+      value: "1000",
+      type: "NUMBER" as const,
+      group: "APP_CONFIG" as const,
+      label: "Minimum Swap (HASHES)",
+      description: "Minimum accumulated hashes required to perform a swap",
+      isSecret: false,
+    },
+    {
+      key: "power_to_hash_rate",
+      value: "100000",
+      type: "NUMBER" as const,
+      group: "APP_CONFIG" as const,
+      label: "Power → Hash Rate",
+      description: "How many POWER needed to generate 1 HASH per second. Default: 100,000",
+      isSecret: false,
+    },
+    {
+      key: "join_bonus_power",
+      value: "2000",
+      type: "NUMBER" as const,
+      group: "APP_CONFIG" as const,
+      label: "Referral Join Bonus (POWER)",
+      description: "Flat power awarded to referrer when a new user joins via their link",
+      isSecret: false,
+    },
+    {
+      key: "purchase_bonus_percent",
+      value: "50",
+      type: "NUMBER" as const,
+      group: "APP_CONFIG" as const,
+      label: "Referral Purchase Bonus (%)",
+      description: "Percentage of downline's purchased plan power given to referrer",
+      isSecret: false,
+    },
+    {
+      key: "payment_receiver_address",
+      value: "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD",
+      type: "STRING" as const,
+      group: "APP_CONFIG" as const,
+      label: "Payment Receiver Address",
+      description: "TON wallet address that receives user payments for plan purchases",
+      isSecret: false,
+    },
+
+    // ── HOT_WALLET ─────────────────────────────────────────────────────────
+    {
+      key: "hot_wallet_mnemonic",
+      value: "",
+      type: "TEXT" as const,
+      group: "HOT_WALLET" as const,
+      label: "Hot Wallet Mnemonic",
+      description: "24-word mnemonic of the wallet used to pay out swap TON to users",
+      isSecret: true,
+    },
+    {
+      key: "ton_network",
+      value: "testnet",
+      type: "STRING" as const,
+      group: "HOT_WALLET" as const,
+      label: "TON Network",
+      description: "Use 'testnet' during development, 'mainnet' in production",
+      isSecret: false,
+    },
+    {
+      key: "ton_api_key",
+      value: "",
+      type: "STRING" as const,
+      group: "HOT_WALLET" as const,
+      label: "TON API Key",
+      description: "API key for toncenter.com — required for on-chain operations",
+      isSecret: true,
+    },
+
+    // ── TELEGRAM ────────────────────────────────────────────────────────────
+    {
+      key: "telegram_bot_token",
+      value: "",
+      type: "STRING" as const,
+      group: "TELEGRAM" as const,
+      label: "Bot Token",
+      description: "Telegram bot token from @BotFather — used to send notifications",
+      isSecret: true,
+    },
+    {
+      key: "telegram_notify_chat_id",
+      value: "",
+      type: "STRING" as const,
+      group: "TELEGRAM" as const,
+      label: "Notification Chat ID",
+      description: "Telegram channel/group ID that receives purchase & swap notifications",
+      isSecret: false,
+    },
+    {
+      key: "bot_username",
+      value: "",
+      type: "STRING" as const,
+      group: "TELEGRAM" as const,
+      label: "Bot Username",
+      description: "Public Telegram bot username (without @) — used for referral deep links",
+      isSecret: false,
+    },
+  ];
+
+  for (const s of settings) {
+    await prisma.appSetting.upsert({
+      where: { key: s.key },
+      update: {
+        // Don't overwrite secrets on re-seed if already set
+        ...(s.isSecret ? {} : { value: s.value }),
+        type: s.type,
+        group: s.group,
+        label: s.label,
+        description: s.description,
+        isSecret: s.isSecret,
+      },
+      create: s,
+    });
+
+    const icon = s.isSecret ? "🔒" : "⚙️";
+    console.log(`  ${icon} [${s.group}] ${s.key} = ${s.isSecret ? "***" : s.value}`);
+  }
+
+  const totalSettings = await prisma.appSetting.count();
+  console.log(`\n📊 Total settings in DB: ${totalSettings}`);
   console.log("\n🎉 Seed completed!");
 }
 

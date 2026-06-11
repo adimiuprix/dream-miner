@@ -10,6 +10,7 @@ const navItems = [
   { href: "/admin/transactions", icon: "fa-solid fa-receipt",       label: "Transactions" },
   { href: "/admin/contracts",    icon: "fa-solid fa-file-contract", label: "Contracts"    },
   { href: "/admin/swaps",        icon: "fa-solid fa-arrows-rotate", label: "Swaps"        },
+  { href: "/admin/settings",     icon: "fa-solid fa-gear",          label: "Settings"     },
 ];
 
 export default function AdminSidebar() {
