@@ -18,7 +18,7 @@ export interface TransactionVerification {
 }
 
 async function getApiEndpoint(): Promise<string> {
-  const network = await getSetting(SETTING_KEYS.TON_NETWORK, "testnet");
+  const network = await getSetting(SETTING_KEYS.TON_NETWORK);
   return network === "mainnet"
     ? "https://toncenter.com/api/v2/jsonRPC"
     : "https://testnet.toncenter.com/api/v2/jsonRPC";

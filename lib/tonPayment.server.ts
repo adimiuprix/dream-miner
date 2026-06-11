@@ -4,10 +4,7 @@
  */
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
-/** Get payment receiver address from DB settings */
+/** Get payment receiver address from DB settings. Throws if not set. */
 export async function getPaymentReceiverAddress(): Promise<string> {
-  return getSetting(
-    SETTING_KEYS.PAYMENT_RECEIVER,
-    "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD"
-  );
+  return getSetting(SETTING_KEYS.PAYMENT_RECEIVER);
 }

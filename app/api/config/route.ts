@@ -5,13 +5,14 @@ import { getSetting, getSettingNumber, SETTING_KEYS } from "@/lib/settings";
  * GET /api/config
  * Returns public app config needed by the client.
  * Does NOT expose secrets.
+ * Returns 500 if any required setting is missing from DB.
  */
 export async function GET() {
   try {
     const [receiverAddress, hashToTonRate, minimumSwapHashes] = await Promise.all([
-      getSetting(SETTING_KEYS.PAYMENT_RECEIVER, "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD"),
-      getSettingNumber(SETTING_KEYS.HASH_TO_TON_RATE, 0.0000144),
-      getSettingNumber(SETTING_KEYS.MINIMUM_SWAP_HASHES, 1000),
+      getSetting(SETTING_KEYS.PAYMENT_RECEIVER),
+      getSettingNumber(SETTING_KEYS.HASH_TO_TON_RATE),
+      getSettingNumber(SETTING_KEYS.MINIMUM_SWAP_HASHES),
     ]);
 
     return NextResponse.json({

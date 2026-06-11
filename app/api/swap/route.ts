@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     try {
       const [mnemonic, tonNetwork, tonApiKey] = await Promise.all([
         getSetting(SETTING_KEYS.HOT_WALLET_MNEMONIC),
-        getSetting(SETTING_KEYS.TON_NETWORK, "testnet"),
+        getSetting(SETTING_KEYS.TON_NETWORK),
         getSetting(SETTING_KEYS.TON_API_KEY),
       ]);
 

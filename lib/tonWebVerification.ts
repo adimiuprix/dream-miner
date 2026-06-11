@@ -22,8 +22,8 @@ export interface TransactionVerificationResult {
 /** Create a TonWeb instance with config from DB — called per request, not at module load */
 async function createTonWeb(): Promise<InstanceType<typeof TonWeb>> {
   const [network, apiKey] = await Promise.all([
-    getSetting(SETTING_KEYS.TON_NETWORK, "testnet"),
-    getSetting(SETTING_KEYS.TON_API_KEY, ""),
+    getSetting(SETTING_KEYS.TON_NETWORK),
+    getSetting(SETTING_KEYS.TON_API_KEY),
   ]);
 
   const endpoint = network === "mainnet"

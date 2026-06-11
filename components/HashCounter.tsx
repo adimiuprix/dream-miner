@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useMining } from "@/components/MiningProvider";
 
-const DEFAULT_HASH_TO_TON_RATE = 0.0000000;
-
 export default function HashCounter() {
   const { stats, isLoading } = useMining();
   const [display, setDisplay] = useState(0);
-  const [hashToTonRate, setHashToTonRate] = useState(DEFAULT_HASH_TO_TON_RATE);
+  const [hashToTonRate, setHashToTonRate] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // Fetch rate from API once on mount
@@ -20,7 +18,7 @@ export default function HashCounter() {
           setHashToTonRate(data.config.hashToTonRate);
         }
       })
-      .catch(() => {/* keep default */});
+      .catch((err) => console.error("[HashCounter] Failed to fetch config:", err));
   }, []);
 
   // Setiap kali stats diperbarui dari server, reset baseline animasi
@@ -59,7 +57,9 @@ export default function HashCounter() {
     );
   }
 
-  const estimatedTon = (display * hashToTonRate).toFixed(8);
+  const estimatedTon = hashToTonRate !== null
+    ? (display * hashToTonRate).toFixed(8)
+    : null;
   const rate = stats?.miningRate ?? 0;
 
   return (
@@ -80,7 +80,7 @@ export default function HashCounter() {
       </p>
       <p style={{ fontSize: "13px", color: "#666", marginTop: 4 }}>HASHES mined</p>
       <p style={{ fontSize: "11px", color: "#3a3a3a" }}>
-        ≈ {estimatedTon} TON at current rate
+        {estimatedTon !== null ? `≈ ${estimatedTon} TON at current rate` : ""}
       </p>
       {rate > 0 && (
         <p style={{ fontSize: "10px", color: "var(--dm-green)", marginTop: 2 }}>
