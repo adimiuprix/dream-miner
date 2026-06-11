@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -28,14 +27,23 @@ interface Plan {
   _count:      { contracts: number };
 }
 
-export default function PlansClient({ plans }: { plans: Plan[] }) {
-  const router = useRouter();
+export default function PlansClient({ plans: initialPlans }: { plans: Plan[] }) {
+  const [plans, setPlans]           = useState<Plan[]>(initialPlans);
   const [formOpen, setFormOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editPlan, setEditPlan]     = useState<Plan | null>(null);
   const [deletePlan, setDeletePlan] = useState<Plan | null>(null);
 
-  const refresh = useCallback(() => router.refresh(), [router]);
+  // Re-fetch plans from API and update local state
+  const refresh = useCallback(async () => {
+    try {
+      const res  = await fetch("/api/admin/plans");
+      const data = await res.json();
+      if (data.success) setPlans(data.plans);
+    } catch (err) {
+      console.error("[PlansClient] refresh error:", err);
+    }
+  }, []);
 
   function openCreate() {
     setEditPlan(null);
