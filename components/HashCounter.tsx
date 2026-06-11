@@ -1,13 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { hashesToTon } from "@/lib/exchangeRate";
 import { useMining } from "@/components/MiningProvider";
+
+const DEFAULT_HASH_TO_TON_RATE = 0.0000000;
 
 export default function HashCounter() {
   const { stats, isLoading } = useMining();
   const [display, setDisplay] = useState(0);
+  const [hashToTonRate, setHashToTonRate] = useState(DEFAULT_HASH_TO_TON_RATE);
   const rafRef = useRef<number | null>(null);
+
+  // Fetch rate from API once on mount
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.config?.hashToTonRate) {
+          setHashToTonRate(data.config.hashToTonRate);
+        }
+      })
+      .catch(() => {/* keep default */});
+  }, []);
 
   // Setiap kali stats diperbarui dari server, reset baseline animasi
   useEffect(() => {
@@ -45,7 +59,7 @@ export default function HashCounter() {
     );
   }
 
-  const estimatedTon = hashesToTon(display).toFixed(8);
+  const estimatedTon = (display * hashToTonRate).toFixed(8);
   const rate = stats?.miningRate ?? 0;
 
   return (

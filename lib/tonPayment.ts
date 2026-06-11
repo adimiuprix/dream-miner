@@ -1,5 +1,4 @@
 import { Address, beginCell, toNano } from "@ton/core";
-import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
 export interface PaymentRequest {
   to: string;
@@ -33,12 +32,4 @@ export function createPaymentTransaction(request: PaymentRequest) {
       },
     ],
   };
-}
-
-/** Get payment receiver address from DB settings */
-export async function getPaymentReceiverAddress(): Promise<string> {
-  return getSetting(
-    SETTING_KEYS.PAYMENT_RECEIVER,
-    "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD"
-  );
 }
