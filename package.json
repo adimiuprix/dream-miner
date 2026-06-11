@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "npx prisma migrate reset && tsx prisma/seed.ts",
-    "db:migrate-timestamp": "tsx scripts/migrate-to-timestamp.ts",
-    "db:verify-migration": "tsx scripts/verify-timestamp-migration.ts"
+    "db:reset": "npx prisma migrate reset && tsx prisma/seed.ts"
   },
   "dependencies": {
     "@ark-ui/react": "^5.37.0",
