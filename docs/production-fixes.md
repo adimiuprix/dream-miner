@@ -435,7 +435,7 @@ if (todayBonus >= 3) return; // max 3 bonus per hari dari satu referrer
 - [x] Fix #4 — Hapus parameter default di `getSettingNumber` calls ✅
 - [ ] Fix #8 — LazyCron gunakan `markExpiredContracts()`
 - [ ] Pastikan semua settings di DB sudah terisi (seed dijalankan)
-- [ ] Ganti `tonconnect-manifest.json` placeholder URL dengan domain production
+- [x] Ganti `tonconnect-manifest.json` placeholder URL dengan domain production ✅ (`https://dream-miner.vercel.app`)
 - [ ] Set `TON_NETWORK=mainnet` di AppSetting DB
 - [ ] Pastikan hot wallet memiliki saldo TON cukup untuk swap awal
 - [ ] Test end-to-end flow: auth → purchase → verify → swap di testnet dulu
