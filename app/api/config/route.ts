@@ -9,10 +9,11 @@ import { getSetting, getSettingNumber, SETTING_KEYS } from "@/lib/settings";
  */
 export async function GET() {
   try {
-    const [receiverAddress, hashToTonRate, minimumSwapHashes] = await Promise.all([
+    const [receiverAddress, hashToTonRate, minimumSwapHashes, botUsername] = await Promise.all([
       getSetting(SETTING_KEYS.PAYMENT_RECEIVER),
       getSettingNumber(SETTING_KEYS.HASH_TO_TON_RATE),
       getSettingNumber(SETTING_KEYS.MINIMUM_SWAP_HASHES),
+      getSetting(SETTING_KEYS.BOT_USERNAME),
     ]);
 
     return NextResponse.json({
@@ -21,6 +22,7 @@ export async function GET() {
         receiverAddress,
         hashToTonRate,
         minimumSwapHashes,
+        botUsername,
       },
     });
   } catch (error) {

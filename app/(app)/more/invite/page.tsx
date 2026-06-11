@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import SubPageHeader from "../_components/SubPageHeader";
 
-const BOT_USERNAME = "dreamminerz_bot";
-
 export default function InvitePage() {
-  const { user }    = useAuth();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
 
-  const referralLink = user?.referralCode
-    ? `https://t.me/${BOT_USERNAME}/app?startapp=${user.referralCode}`
-    : "";
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.config?.botUsername) {
+          setBotUsername(data.config.botUsername);
+        }
+      })
+      .catch((err) => console.error("[InvitePage] Failed to fetch config:", err));
+  }, []);
+
+  const referralLink =
+    botUsername && user?.referralCode
+      ? `https://t.me/${botUsername}/app?startapp=${user.referralCode}`
+      : "";
 
   async function handleCopy() {
     if (!referralLink) return;
