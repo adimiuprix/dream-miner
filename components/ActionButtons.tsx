@@ -9,7 +9,7 @@ interface ActionButtonsProps {
 export default function ActionButtons({ referralCode }: ActionButtonsProps) {
   const [copied, setCopied] = useState(false);
 
-  const BOT_USERNAME = "DreamMinerBot";
+  const BOT_USERNAME = "dreamminerz_bot";
 
   const referralLink = referralCode
     ? `https://t.me/${BOT_USERNAME}/app?startapp=${referralCode}`
