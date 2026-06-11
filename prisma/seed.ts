@@ -32,9 +32,6 @@ async function main() {
       isFree: true,
     },
 
-    // ─── BONUS PLACEHOLDER ───────────────────────────────────────
-    // Not shown in shop (isActive: false). Used internally as planId
-    // for all bonus contracts (referral bonuses, task rewards, etc.)
     {
       name: "Bonus",
       slug: "bonus",
@@ -144,15 +141,15 @@ async function main() {
 
     const tag = plan.isFree ? "🆓 FREE" : `💰 ${plan.price} TON`;
     console.log(
-      `  ✅ [${tag}] ${plan.name} POWER — ` +
-      `${plan.duration}d — base: ${plan.power.toLocaleString()} + bonus: ${plan.bonus.toLocaleString()}`
+      `  ✅ [${tag}] ${plan.name} — ${plan.duration}d — power: ${plan.power.toLocaleString()} + bonus: ${plan.bonus.toLocaleString()}`
     );
   }
 
-  const total = await prisma.plan.count();
-  console.log("");
-  console.log("🎉 Seed completed!");
-  console.log(`📊 Total plans in DB: ${total} (1 free + ${plans.length - 1} paid)`);
+  const totalPlans = await prisma.plan.count();
+  console.log(`\n📊 Total plans in DB: ${totalPlans}\n`);
+
+  // ─── Tasks ────────────────────────────────────────────────────────────────
+  console.log("🌱 Seeding tasks...\n");
 
   const tasks = [
     // ── Social ───────────────────────────────────────────────────────────────
@@ -288,14 +285,13 @@ async function main() {
 
     const repeat = task.isRepeatable ? ` (repeatable ${task.repeatCooldownHours}h)` : "";
     console.log(
-      `  ${typeIcon[task.type] ?? "✅"} [${task.type}] ${task.title} — ` +
-      `+${task.reward.toLocaleString()} POWER${repeat}`
+      `  ${typeIcon[task.type] ?? "✅"} [${task.type}] ${task.title} — +${task.reward.toLocaleString()} POWER${repeat}`
     );
   }
 
-  const taskTotal = await prisma.task.count();
-  console.log("");
-  console.log(`📊 Total tasks in DB: ${taskTotal}`);
+  const totalTasks = await prisma.task.count();
+  console.log(`\n📊 Total tasks in DB: ${totalTasks}`);
+  console.log("\n🎉 Seed completed!");
 }
 
 main()
