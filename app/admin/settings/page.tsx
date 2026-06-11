@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Setting {
   key:         string;
   value:       string;
@@ -18,287 +15,211 @@ interface Setting {
   updatedAt:   string;
 }
 
-type GroupedSettings = Record<string, Setting[]>;
+const GROUPS: { key: string; label: string; icon: string; color: string; desc: string }[] = [
+  {
+    key:   "APP_CONFIG",
+    label: "App Config",
+    icon:  "fa-solid fa-sliders",
+    color: "#6366f1",
+    desc:  "Core application parameters — mining rates, swap limits, and referral bonuses.",
+  },
+  {
+    key:   "HOT_WALLET",
+    label: "Hot Wallet",
+    icon:  "fa-solid fa-wallet",
+    color: "#f59e0b",
+    desc:  "TON hot wallet credentials used to send payouts to users on swap.",
+  },
+  {
+    key:   "TELEGRAM",
+    label: "Telegram",
+    icon:  "fa-brands fa-telegram",
+    color: "#3b82f6",
+    desc:  "Telegram bot integration for notifications and Mini App configuration.",
+  },
+];
 
-const GROUP_META: Record<string, { label: string; icon: string; color: string }> = {
-  APP_CONFIG:  { label: "App Config",  icon: "fa-solid fa-sliders",    color: "#6366f1" },
-  HOT_WALLET:  { label: "Hot Wallet",  icon: "fa-solid fa-wallet",     color: "#f59e0b" },
-  TELEGRAM:    { label: "Telegram Bot",icon: "fa-brands fa-telegram",  color: "#3b82f6" },
-};
-
-// ─── Single setting row ───────────────────────────────────────────────────────
-function SettingRow({
-  setting,
-  editValue,
-  onChange,
-  isDirty,
+// ─── Field row ────────────────────────────────────────────────────────────────
+function FieldRow({
+  setting, value, onChange, isDirty,
 }: {
-  setting:   Setting;
-  editValue: string;
-  onChange:  (key: string, value: string) => void;
-  isDirty:   boolean;
+  setting: Setting; value: string;
+  onChange: (key: string, val: string) => void; isDirty: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
-
-  const isTextarea = setting.type === "TEXT";
-  const displayValue = setting.isSecret && !revealed ? "" : editValue;
+  const isMono =
+    setting.key.includes("address") || setting.key.includes("token") ||
+    setting.key.includes("key")     || setting.key.includes("mnemonic") ||
+    setting.key.includes("chat_id") || setting.type === "NUMBER";
 
   return (
     <div
-      className="flex flex-col gap-2 py-4"
-      style={{ borderBottom: "1px solid var(--admin-border)" }}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1.5fr",
+        gap: "12px 32px",
+        padding: "18px 0",
+        borderBottom: "1px solid var(--admin-border)",
+        alignItems: "start",
+      }}
     >
-      <div className="flex items-start justify-between gap-4">
-        {/* Label + description */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold" style={{ color: "var(--admin-text)" }}>
-              {setting.label}
-            </span>
-            {setting.isSecret && (
-              <Badge variant="warning" pill>Secret</Badge>
-            )}
-            {isDirty && (
-              <Badge variant="info" pill>Modified</Badge>
-            )}
-          </div>
-          <div className="text-xs font-mono mt-0.5" style={{ color: "var(--admin-text-muted)" }}>
-            {setting.key}
-          </div>
-          {setting.description && (
-            <div className="text-xs mt-1" style={{ color: "var(--admin-text-muted)" }}>
-              {setting.description}
-            </div>
-          )}
-        </div>
-
-        {/* Input */}
-        <div className="flex items-center gap-2" style={{ minWidth: 280 }}>
-          {isTextarea ? (
-            <textarea
-              value={setting.isSecret && !revealed ? "" : editValue}
-              placeholder={setting.isSecret && !revealed ? "••••••••  (click eye to edit)" : ""}
-              onChange={(e) => onChange(setting.key, e.target.value)}
-              rows={3}
-              style={{
-                flex: 1,
-                background: "var(--admin-surface)",
-                border: `1px solid ${isDirty ? "rgba(99,102,241,0.5)" : "var(--admin-border)"}`,
-                borderRadius: 6,
-                color: "var(--admin-text)",
-                fontSize: 12,
-                fontFamily: "monospace",
-                padding: "8px 10px",
-                resize: "vertical",
-                outline: "none",
-                width: "100%",
-              }}
-            />
-          ) : (
-            <Input
-              type={setting.isSecret && !revealed ? "password" : "text"}
-              value={displayValue}
-              placeholder={setting.isSecret && !revealed ? "••••••••  (click eye to edit)" : ""}
-              onChange={(e) => onChange(setting.key, e.target.value)}
-              style={{
-                flex: 1,
-                fontFamily: setting.type === "NUMBER" || setting.key.includes("address") || setting.key.includes("token") || setting.key.includes("key") || setting.key.includes("id")
-                  ? "monospace" : undefined,
-                fontSize: 13,
-                borderColor: isDirty ? "rgba(99,102,241,0.5)" : undefined,
-              }}
-            />
-          )}
-
+      {/* Left: label + key + description */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--admin-text)" }}>
+            {setting.label}
+          </span>
           {setting.isSecret && (
-            <button
-              onClick={() => setRevealed((r) => !r)}
-              title={revealed ? "Hide" : "Reveal"}
-              style={{
-                background: "none",
-                border: "1px solid var(--admin-border)",
-                borderRadius: 6,
-                color: "var(--admin-text-muted)",
-                width: 32,
-                height: 32,
-                flexShrink: 0,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-              }}
-            >
-              <i className={revealed ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} />
-            </button>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+              background: "rgba(245,158,11,0.12)", color: "#f59e0b",
+              border: "1px solid rgba(245,158,11,0.2)", letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              secret
+            </span>
+          )}
+          {isDirty && (
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+              background: "rgba(99,102,241,0.15)", color: "#818cf8",
+              border: "1px solid rgba(99,102,241,0.25)", letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              unsaved
+            </span>
           )}
         </div>
+        <div style={{ fontSize: 11, fontFamily: "monospace", color: "var(--admin-text-muted)", marginTop: 3 }}>
+          {setting.key}
+        </div>
+        {setting.description && (
+          <div style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 6, lineHeight: 1.55 }}>
+            {setting.description}
+          </div>
+        )}
+      </div>
+
+      {/* Right: input */}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        {setting.type === "TEXT" ? (
+          <textarea
+            value={setting.isSecret && !revealed ? "" : value}
+            placeholder={setting.isSecret && !revealed ? "Click 👁 to reveal and edit" : "Enter value…"}
+            onChange={(e) => onChange(setting.key, e.target.value)}
+            rows={4}
+            style={{
+              flex: 1, background: "var(--admin-bg)",
+              border: `1px solid ${isDirty ? "rgba(99,102,241,0.45)" : "var(--admin-border)"}`,
+              borderRadius: 8, color: "var(--admin-text)",
+              fontSize: 12, fontFamily: "monospace",
+              padding: "9px 12px", resize: "vertical", outline: "none",
+              lineHeight: 1.6, transition: "border-color 0.15s",
+            }}
+          />
+        ) : (
+          <Input
+            type={setting.isSecret && !revealed ? "password" : "text"}
+            value={setting.isSecret && !revealed ? "" : value}
+            placeholder={setting.isSecret && !revealed ? "Click 👁 to reveal and edit" : ""}
+            onChange={(e) => onChange(setting.key, e.target.value)}
+            style={{
+              flex: 1,
+              fontFamily: isMono ? "monospace" : undefined,
+              fontSize: 13,
+              borderColor: isDirty ? "rgba(99,102,241,0.45)" : undefined,
+              background: "var(--admin-bg)",
+            }}
+          />
+        )}
+        {setting.isSecret && (
+          <button
+            onClick={() => setRevealed((r) => !r)}
+            title={revealed ? "Hide value" : "Reveal value"}
+            style={{
+              flexShrink: 0, width: 36, height: 36, borderRadius: 8,
+              background: "var(--admin-bg)", border: "1px solid var(--admin-border)",
+              color: revealed ? "var(--admin-text)" : "var(--admin-text-muted)",
+              cursor: "pointer", display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: 13, transition: "all 0.15s",
+            }}
+          >
+            <i className={revealed ? "fa-solid fa-eye-slash" : "fa-solid fa-eye"} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Group card ───────────────────────────────────────────────────────────────
-function SettingGroup({
-  groupKey,
-  settings,
-  editValues,
-  dirtyKeys,
-  onChange,
-  onSave,
-  saving,
-}: {
-  groupKey:   string;
-  settings:   Setting[];
-  editValues: Record<string, string>;
-  dirtyKeys:  Set<string>;
-  onChange:   (key: string, value: string) => void;
-  onSave:     (groupKey: string) => void;
-  saving:     boolean;
-}) {
-  const meta = GROUP_META[groupKey] ?? { label: groupKey, icon: "fa-solid fa-gear", color: "#6b7280" };
-  const groupDirty = settings.some((s) => dirtyKeys.has(s.key));
-
-  return (
-    <Card className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none">
-      {/* Group header */}
-      <div
-        className="flex items-center justify-between px-6 py-4"
-        style={{ borderBottom: "1px solid var(--admin-border)" }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: `${meta.color}22` }}
-          >
-            <i className={meta.icon} style={{ color: meta.color, fontSize: 14 }} />
-          </div>
-          <div>
-            <div className="text-sm font-bold" style={{ color: "var(--admin-text)" }}>
-              {meta.label}
-            </div>
-            <div className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
-              {settings.length} settings
-            </div>
-          </div>
-        </div>
-
-        <Button
-          onClick={() => onSave(groupKey)}
-          isLoading={saving}
-          disabled={!groupDirty || saving}
-          size="sm"
-        >
-          <i className="fa-solid fa-floppy-disk" />
-          Save
-        </Button>
-      </div>
-
-      {/* Rows */}
-      <CardContent className="!px-6 !py-0">
-        {settings.map((s) => (
-          <SettingRow
-            key={s.key}
-            setting={s}
-            editValue={editValues[s.key] ?? ""}
-            onChange={onChange}
-            isDirty={dirtyKeys.has(s.key)}
-          />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AdminSettings() {
-  const [settings, setSettings]     = useState<Setting[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [editValues, setEditValues] = useState<Record<string, string>>({});
-  const [dirtyKeys, setDirtyKeys]   = useState<Set<string>>(new Set());
+  const [settings, setSettings]       = useState<Setting[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [editValues, setEditValues]   = useState<Record<string, string>>({});
+  const [dirtyKeys, setDirtyKeys]     = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab]     = useState("APP_CONFIG");
   const [savingGroup, setSavingGroup] = useState<string | null>(null);
-  const [toast, setToast]           = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast]             = useState<{ msg: string; ok: boolean } | null>(null);
 
-  // Fetch settings
   const fetchSettings = useCallback(async () => {
     try {
       const res  = await fetch("/api/admin/settings");
       const data = await res.json();
       if (data.success) {
         setSettings(data.settings);
-        // Initialize edit values (masked secrets start empty so user must type to change)
         const vals: Record<string, string> = {};
-        for (const s of data.settings as Setting[]) {
+        for (const s of data.settings as Setting[])
           vals[s.key] = s.isSecret ? "" : s.value;
-        }
         setEditValues(vals);
         setDirtyKeys(new Set());
       }
-    } catch (err) {
-      console.error("[AdminSettings] fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
-  // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(id);
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
   }, [toast]);
 
-  function handleChange(key: string, value: string) {
-    setEditValues((prev) => ({ ...prev, [key]: value }));
-    setDirtyKeys((prev) => new Set(prev).add(key));
+  function handleChange(key: string, val: string) {
+    setEditValues((p) => ({ ...p, [key]: val }));
+    setDirtyKeys((p) => new Set(p).add(key));
   }
 
   async function handleSave(groupKey: string) {
-    const groupSettings = settings.filter((s) => s.group === groupKey);
-    const updates = groupSettings
-      .filter((s) => dirtyKeys.has(s.key))
+    const updates = settings
+      .filter((s) => s.group === groupKey && dirtyKeys.has(s.key))
       .map((s) => ({ key: s.key, value: editValues[s.key] ?? "" }));
-
-    if (updates.length === 0) return;
-
+    if (!updates.length) return;
     setSavingGroup(groupKey);
     try {
       const res  = await fetch("/api/admin/settings", {
-        method:  "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ updates }),
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
       });
       const data = await res.json();
-
-      if (!res.ok) {
-        setToast({ msg: data.error ?? "Failed to save", type: "error" });
-        return;
-      }
-
-      setToast({ msg: `${data.updated} setting(s) saved`, type: "success" });
-      // Clear dirty for this group
-      setDirtyKeys((prev) => {
-        const next = new Set(prev);
-        updates.forEach((u) => next.delete(u.key));
-        return next;
-      });
-    } catch {
-      setToast({ msg: "Network error — please try again", type: "error" });
-    } finally {
-      setSavingGroup(null);
-    }
+      if (!res.ok) { setToast({ msg: data.error ?? "Failed to save", ok: false }); return; }
+      setToast({ msg: `${data.updated} setting${data.updated > 1 ? "s" : ""} saved successfully`, ok: true });
+      setDirtyKeys((p) => { const n = new Set(p); updates.forEach((u) => n.delete(u.key)); return n; });
+    } catch { setToast({ msg: "Network error — please try again", ok: false }); }
+    finally { setSavingGroup(null); }
   }
 
-  // Group settings
-  const grouped = settings.reduce<GroupedSettings>((acc, s) => {
+  const grouped = settings.reduce<Record<string, Setting[]>>((acc, s) => {
     if (!acc[s.group]) acc[s.group] = [];
     acc[s.group].push(s);
     return acc;
   }, {});
 
-  const groupOrder = ["APP_CONFIG", "HOT_WALLET", "TELEGRAM"];
+  const activeGroup   = GROUPS.find((g) => g.key === activeTab)!;
+  const activeFields  = grouped[activeTab] ?? [];
+  const tabDirty      = activeFields.filter((s) => dirtyKeys.has(s.key)).length;
+  const totalDirty    = dirtyKeys.size;
 
   return (
     <div className="admin-content">
@@ -306,62 +227,146 @@ export default function AdminSettings() {
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">Settings</h1>
-          <p className="admin-page-desc">App configuration, wallet, and integrations</p>
+          <p className="admin-page-desc">Manage application configuration, integrations, and secrets.</p>
         </div>
-        {dirtyKeys.size > 0 && (
-          <div className="text-xs" style={{ color: "var(--admin-text-muted)", alignSelf: "center" }}>
-            {dirtyKeys.size} unsaved change{dirtyKeys.size > 1 ? "s" : ""}
+        {totalDirty > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 8,
+            background: "rgba(99,102,241,0.1)", color: "#818cf8",
+            border: "1px solid rgba(99,102,241,0.2)",
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
+            {totalDirty} unsaved change{totalDirty > 1 ? "s" : ""}
           </div>
         )}
       </div>
 
       {/* Toast */}
       {toast && (
-        <div
-          className="mb-6 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2"
-          style={{
-            background: toast.type === "success" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
-            border: `1px solid ${toast.type === "success" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
-            color: toast.type === "success" ? "#10b981" : "#ef4444",
-          }}
-        >
-          <i className={toast.type === "success" ? "fa-solid fa-check-circle" : "fa-solid fa-circle-exclamation"} />
+        <div style={{
+          marginBottom: 24, padding: "12px 16px", borderRadius: 10,
+          display: "flex", alignItems: "center", gap: 10,
+          fontSize: 13, fontWeight: 500,
+          background: toast.ok ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+          border: `1px solid ${toast.ok ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+          color: toast.ok ? "#10b981" : "#ef4444",
+        }}>
+          <i className={`fa-solid ${toast.ok ? "fa-circle-check" : "fa-circle-exclamation"}`} />
           {toast.msg}
         </div>
       )}
 
-      {/* Skeleton */}
       {loading ? (
-        <div className="flex flex-col gap-6">
-          {[0, 1, 2].map((i) => (
-            <Card key={i} className="!rounded-[var(--admin-radius)] !border-[var(--admin-border)] !bg-[var(--admin-surface)] !shadow-none">
-              <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--admin-border)" }}>
-                <div className="h-5 w-32 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.08)" }} />
+        /* Skeleton */
+        <div style={{ display: "flex", gap: 24 }}>
+          <div style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+            {[0,1,2].map((i) => (
+              <div key={i} style={{ height: 44, borderRadius: 8, background: "rgba(255,255,255,0.05)" }}
+                className="animate-pulse" />
+            ))}
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+            {[0,1,2,3,4].map((i) => (
+              <div key={i} style={{ padding: "18px 0", borderBottom: "1px solid var(--admin-border)",
+                display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 32 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ height: 14, width: 120, borderRadius: 4, background: "rgba(255,255,255,0.07)" }} className="animate-pulse" />
+                  <div style={{ height: 10, width: 160, borderRadius: 4, background: "rgba(255,255,255,0.04)" }} className="animate-pulse" />
+                </div>
+                <div style={{ height: 36, borderRadius: 8, background: "rgba(255,255,255,0.05)" }} className="animate-pulse" />
               </div>
-              <CardContent className="!px-6 !py-4 flex flex-col gap-4">
-                {[0, 1, 2].map((j) => (
-                  <div key={j} className="h-10 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.05)" }} />
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+            ))}
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {groupOrder.map((gk) =>
-            grouped[gk] ? (
-              <SettingGroup
-                key={gk}
-                groupKey={gk}
-                settings={grouped[gk]}
-                editValues={editValues}
-                dirtyKeys={dirtyKeys}
-                onChange={handleChange}
-                onSave={handleSave}
-                saving={savingGroup === gk}
-              />
-            ) : null
-          )}
+        <div style={{ display: "flex", gap: 28, alignItems: "flex-start" }}>
+
+          {/* ── Left nav ──────────────────────────────────────────────────── */}
+          <nav style={{ width: 196, flexShrink: 0, position: "sticky", top: 24 }}>
+            {GROUPS.map((g) => {
+              const isActive  = activeTab === g.key;
+              const hasDirty  = (grouped[g.key] ?? []).some((s) => dirtyKeys.has(s.key));
+              return (
+                <button
+                  key={g.key}
+                  onClick={() => setActiveTab(g.key)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center",
+                    gap: 10, padding: "10px 14px", marginBottom: 2,
+                    borderRadius: 8, border: "none", cursor: "pointer",
+                    background: isActive ? `${g.color}14` : "transparent",
+                    color: isActive ? g.color : "var(--admin-text-muted)",
+                    fontSize: 13, fontWeight: isActive ? 600 : 500,
+                    textAlign: "left", transition: "all 0.15s",
+                  }}
+                >
+                  <i className={g.icon} style={{ fontSize: 14, width: 16, textAlign: "center" }} />
+                  <span style={{ flex: 1 }}>{g.label}</span>
+                  {hasDirty && (
+                    <span style={{
+                      width: 7, height: 7, borderRadius: "50%",
+                      background: "#6366f1", flexShrink: 0,
+                    }} />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* ── Right content ─────────────────────────────────────────────── */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Section header */}
+            <div style={{
+              display: "flex", alignItems: "flex-start",
+              justifyContent: "space-between", gap: 16,
+              paddingBottom: 18, marginBottom: 0,
+              borderBottom: `2px solid ${activeGroup.color}`,
+            }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: `${activeGroup.color}18`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <i className={activeGroup.icon} style={{ color: activeGroup.color, fontSize: 14 }} />
+                  </div>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-text)" }}>
+                    {activeGroup.label}
+                  </h2>
+                </div>
+                <p style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 6 }}>
+                  {activeGroup.desc}
+                </p>
+              </div>
+              <Button
+                onClick={() => handleSave(activeTab)}
+                isLoading={savingGroup === activeTab}
+                disabled={tabDirty === 0 || savingGroup === activeTab}
+                size="sm"
+                style={{ flexShrink: 0 }}
+              >
+                <i className="fa-solid fa-floppy-disk" />
+                {tabDirty > 0 ? `Save ${tabDirty} change${tabDirty > 1 ? "s" : ""}` : "Save"}
+              </Button>
+            </div>
+
+            {/* Fields */}
+            <div>
+              {activeFields.map((s) => (
+                <FieldRow
+                  key={s.key}
+                  setting={s}
+                  value={editValues[s.key] ?? ""}
+                  onChange={handleChange}
+                  isDirty={dirtyKeys.has(s.key)}
+                />
+              ))}
+              {/* Remove border on last row */}
+              <style>{`div > div:last-child > [style*="border-bottom"] { border-bottom: none !important; }`}</style>
+            </div>
+          </div>
         </div>
       )}
     </div>
