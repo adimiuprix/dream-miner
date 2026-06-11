@@ -3,8 +3,8 @@ import { getSettingNumber, SETTING_KEYS } from "@/lib/settings";
 
 async function getBonusConfig() {
   const [joinPower, purchasePercent] = await Promise.all([
-    getSettingNumber(SETTING_KEYS.JOIN_BONUS_POWER, 2_000),
-    getSettingNumber(SETTING_KEYS.PURCHASE_BONUS_PERCENT, 50),
+    getSettingNumber(SETTING_KEYS.JOIN_BONUS_POWER),
+    getSettingNumber(SETTING_KEYS.PURCHASE_BONUS_PERCENT),
   ]);
   return {
     joinBonusPower:       joinPower,

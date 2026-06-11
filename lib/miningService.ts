@@ -20,10 +20,8 @@
 import { prisma } from "@/lib/prisma";
 import { getSettingNumber, SETTING_KEYS } from "@/lib/settings";
 
-const DEFAULT_POWER_TO_HASH_RATE = 100_000;
-
 async function getPowerToHashRate(): Promise<number> {
-  return getSettingNumber(SETTING_KEYS.POWER_TO_HASH_RATE, DEFAULT_POWER_TO_HASH_RATE);
+  return getSettingNumber(SETTING_KEYS.POWER_TO_HASH_RATE);
 }
 
 export interface MiningStats {
