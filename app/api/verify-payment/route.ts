@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTransactionByReceiverAddress } from "@/lib/tonWebVerification";
 import { serializeContract } from "@/lib/serialization";
 import { givePurchaseBonus } from "@/lib/referralBonus";
+import { notifyPurchaseCompleted } from "@/lib/telegramNotification";
 
 /**
  * POST /api/verify-payment
@@ -146,11 +147,21 @@ export async function POST(request: NextRequest) {
     // Give purchase bonus to referrer if buyer was referred (fire-and-forget)
     const buyer = await prisma.user.findUnique({
       where: { id: transaction.userId },
-      select: { referredById: true },
+      select: { referredById: true, username: true, firstName: true },
     });
     if (buyer?.referredById) {
       givePurchaseBonus(buyer.referredById, plan.power, plan.bonus, plan.duration);
     }
+
+    // Kirim notifikasi ke Telegram channel (fire-and-forget)
+    notifyPurchaseCompleted({
+      userId:    transaction.userId,
+      username:  buyer?.username ?? null,
+      firstName: buyer?.firstName ?? "Unknown",
+      planName:  plan.name,
+      amount:    transaction.amount,
+      txHash:    transaction.txHash,
+    });
 
     console.log(`[VerifyPayment] Purchase completed for user ${transaction.userId}`);
 

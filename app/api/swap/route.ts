@@ -4,6 +4,7 @@ import { HASH_TO_TON_RATE, MINIMUM_SWAP_HASHES, hashesToTon } from "@/lib/exchan
 import { NextRequest, NextResponse } from "next/server";
 import { TonClient, WalletContractV4, internal, toNano } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
+import { notifySwapCompleted } from "@/lib/telegramNotification";
 
 /**
  * POST /api/swap
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, tonBalance: true, walletAddress: true },
+      select: { id: true, tonBalance: true, walletAddress: true, username: true, firstName: true },
     });
 
     if (!user) {
@@ -187,6 +188,18 @@ export async function POST(request: NextRequest) {
       `[Swap] User ${userId} swapped ${hashesToSwap.toFixed(2)} HASHES ` +
         `for ${tonAmount.toFixed(9)} TON → ${user.walletAddress}`
     );
+
+    // 6. Kirim notifikasi ke Telegram channel (fire-and-forget)
+    notifySwapCompleted({
+      userId,
+      username:      user.username,
+      firstName:     user.firstName,
+      walletAddress: user.walletAddress!,
+      hashesSwapped: hashesToSwap,
+      tonReceived:   tonAmount,
+      txHash,
+      swapId:        completedSwap.id,
+    });
 
     return NextResponse.json({
       success: true,
