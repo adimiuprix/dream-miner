@@ -53,16 +53,7 @@ function FieldRow({
     setting.key.includes("chat_id") || setting.type === "NUMBER";
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1.5fr",
-        gap: "12px 32px",
-        padding: "18px 0",
-        borderBottom: "1px solid var(--admin-border)",
-        alignItems: "start",
-      }}
-    >
+    <div className="settings-field-row">
       {/* Left: label + key + description */}
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -301,94 +292,160 @@ export default function AdminSettings() {
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 28, alignItems: "flex-start" }}>
+        <>
+          {/* ── Responsive styles ─────────────────────────────────────────── */}
+          <style>{`
+            .settings-layout { display: flex; gap: 28px; align-items: flex-start; }
+            .settings-nav     { width: 196px; flex-shrink: 0; position: sticky; top: 24px; }
+            .settings-nav-mobile { display: none; }
+            .settings-field-row {
+              display: grid;
+              grid-template-columns: 1fr 1.5fr;
+              gap: 12px 32px;
+              padding: 18px 0;
+              border-bottom: 1px solid var(--admin-border);
+              align-items: start;
+            }
+            .settings-field-row:last-child { border-bottom: none; }
+            .settings-section-header {
+              display: flex; align-items: flex-start;
+              justify-content: space-between; gap: 16px;
+              padding-bottom: 18px;
+            }
+            @media (max-width: 767px) {
+              .settings-layout   { flex-direction: column; gap: 0; }
+              .settings-nav      { display: none; }
+              .settings-nav-mobile {
+                display: flex;
+                overflow-x: auto;
+                gap: 4px;
+                padding: 0 0 12px 0;
+                margin-bottom: 16px;
+                scrollbar-width: none;
+                border-bottom: 1px solid var(--admin-border);
+              }
+              .settings-nav-mobile::-webkit-scrollbar { display: none; }
+              .settings-field-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 16px 0;
+              }
+              .settings-section-header {
+                flex-wrap: wrap;
+              }
+            }
+          `}</style>
 
-          {/* ── Left nav ──────────────────────────────────────────────────── */}
-          <nav style={{ width: 196, flexShrink: 0, position: "sticky", top: 24 }}>
+          {/* ── Mobile horizontal tabs ─────────────────────────────────────── */}
+          <div className="settings-nav-mobile">
             {GROUPS.map((g) => {
-              const isActive  = activeTab === g.key;
-              const hasDirty  = (grouped[g.key] ?? []).some((s) => dirtyKeys.has(s.key));
+              const isActive = activeTab === g.key;
+              const hasDirty = (grouped[g.key] ?? []).some((s) => dirtyKeys.has(s.key));
               return (
                 <button
                   key={g.key}
                   onClick={() => setActiveTab(g.key)}
                   style={{
-                    width: "100%", display: "flex", alignItems: "center",
-                    gap: 10, padding: "10px 14px", marginBottom: 2,
-                    borderRadius: 8, border: "none", cursor: "pointer",
-                    background: isActive ? `${g.color}14` : "transparent",
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "8px 14px", borderRadius: 8, border: "none",
+                    cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+                    background: isActive ? `${g.color}18` : "rgba(255,255,255,0.04)",
                     color: isActive ? g.color : "var(--admin-text-muted)",
                     fontSize: 13, fontWeight: isActive ? 600 : 500,
-                    textAlign: "left", transition: "all 0.15s",
+                    transition: "all 0.15s",
                   }}
                 >
-                  <i className={g.icon} style={{ fontSize: 14, width: 16, textAlign: "center" }} />
-                  <span style={{ flex: 1 }}>{g.label}</span>
+                  <i className={g.icon} style={{ fontSize: 13 }} />
+                  {g.label}
                   {hasDirty && (
-                    <span style={{
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: "#6366f1", flexShrink: 0,
-                    }} />
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", flexShrink: 0 }} />
                   )}
                 </button>
               );
             })}
-          </nav>
+          </div>
 
-          {/* ── Right content ─────────────────────────────────────────────── */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Section header */}
-            <div style={{
-              display: "flex", alignItems: "flex-start",
-              justifyContent: "space-between", gap: 16,
-              paddingBottom: 18, marginBottom: 0,
-              borderBottom: `2px solid ${activeGroup.color}`,
-            }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: `${activeGroup.color}18`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <i className={activeGroup.icon} style={{ color: activeGroup.color, fontSize: 14 }} />
-                  </div>
-                  <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-text)" }}>
-                    {activeGroup.label}
-                  </h2>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 6 }}>
-                  {activeGroup.desc}
-                </p>
-              </div>
-              <Button
-                onClick={() => handleSave(activeTab)}
-                isLoading={savingGroup === activeTab}
-                disabled={tabDirty === 0 || savingGroup === activeTab}
-                size="sm"
-                style={{ flexShrink: 0 }}
+          <div className="settings-layout">
+            {/* ── Desktop left nav ──────────────────────────────────────────── */}
+            <nav className="settings-nav">
+              {GROUPS.map((g) => {
+                const isActive  = activeTab === g.key;
+                const hasDirty  = (grouped[g.key] ?? []).some((s) => dirtyKeys.has(s.key));
+                return (
+                  <button
+                    key={g.key}
+                    onClick={() => setActiveTab(g.key)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center",
+                      gap: 10, padding: "10px 14px", marginBottom: 2,
+                      borderRadius: 8, border: "none", cursor: "pointer",
+                      background: isActive ? `${g.color}14` : "transparent",
+                      color: isActive ? g.color : "var(--admin-text-muted)",
+                      fontSize: 13, fontWeight: isActive ? 600 : 500,
+                      textAlign: "left", transition: "all 0.15s",
+                    }}
+                  >
+                    <i className={g.icon} style={{ fontSize: 14, width: 16, textAlign: "center" }} />
+                    <span style={{ flex: 1 }}>{g.label}</span>
+                    {hasDirty && (
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#6366f1", flexShrink: 0 }} />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* ── Right content ─────────────────────────────────────────────── */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Section header */}
+              <div
+                className="settings-section-header"
+                style={{ borderBottom: `2px solid ${activeGroup.color}` }}
               >
-                <i className="fa-solid fa-floppy-disk" />
-                {tabDirty > 0 ? `Save ${tabDirty} change${tabDirty > 1 ? "s" : ""}` : "Save"}
-              </Button>
-            </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8,
+                      background: `${activeGroup.color}18`, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <i className={activeGroup.icon} style={{ color: activeGroup.color, fontSize: 14 }} />
+                    </div>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-text)" }}>
+                      {activeGroup.label}
+                    </h2>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 6 }}>
+                    {activeGroup.desc}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => handleSave(activeTab)}
+                  isLoading={savingGroup === activeTab}
+                  disabled={tabDirty === 0 || savingGroup === activeTab}
+                  size="sm"
+                  style={{ flexShrink: 0 }}
+                >
+                  <i className="fa-solid fa-floppy-disk" />
+                  {tabDirty > 0 ? `Save ${tabDirty} change${tabDirty > 1 ? "s" : ""}` : "Save"}
+                </Button>
+              </div>
 
-            {/* Fields */}
-            <div>
-              {activeFields.map((s) => (
-                <FieldRow
-                  key={s.key}
-                  setting={s}
-                  value={editValues[s.key] ?? ""}
-                  onChange={handleChange}
-                  isDirty={dirtyKeys.has(s.key)}
-                />
-              ))}
-              {/* Remove border on last row */}
-              <style>{`div > div:last-child > [style*="border-bottom"] { border-bottom: none !important; }`}</style>
+              {/* Fields */}
+              <div>
+                {activeFields.map((s) => (
+                  <FieldRow
+                    key={s.key}
+                    setting={s}
+                    value={editValues[s.key] ?? ""}
+                    onChange={handleChange}
+                    isDirty={dirtyKeys.has(s.key)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
