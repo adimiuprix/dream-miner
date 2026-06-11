@@ -32,26 +32,13 @@ export const SETTING_KEYS = {
 
 export type SettingKey = typeof SETTING_KEYS[keyof typeof SETTING_KEYS];
 
-// ─── In-memory cache (invalidated on write) ───────────────────────────────────
-const cache = new Map<string, { value: string; ts: number }>();
-const CACHE_TTL = 60_000; // 1 minute
-
-function isCacheValid(key: string): boolean {
-  const entry = cache.get(key);
-  return !!entry && Date.now() - entry.ts < CACHE_TTL;
-}
-
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
 /** Get a setting value as string. Returns defaultValue if key not found. */
 export async function getSetting(key: SettingKey, defaultValue = ""): Promise<string> {
-  if (isCacheValid(key)) return cache.get(key)!.value;
-
   try {
     const row = await prisma.appSetting.findUnique({ where: { key } });
-    const value = row?.value ?? defaultValue;
-    cache.set(key, { value, ts: Date.now() });
-    return value;
+    return row?.value ?? defaultValue;
   } catch {
     return defaultValue;
   }
@@ -77,10 +64,9 @@ export async function getAllSettings() {
 
 // ─── Write ────────────────────────────────────────────────────────────────────
 
-/** Update a setting value and invalidate cache. */
+/** Update a setting value. */
 export async function setSetting(key: SettingKey, value: string): Promise<void> {
   await prisma.appSetting.update({ where: { key }, data: { value } });
-  cache.delete(key); // invalidate
 }
 
 /** Bulk update settings. */
@@ -90,5 +76,4 @@ export async function setSettings(entries: { key: SettingKey; value: string }[])
       prisma.appSetting.update({ where: { key: e.key }, data: { value: e.value } })
     )
   );
-  entries.forEach((e) => cache.delete(e.key));
 }
