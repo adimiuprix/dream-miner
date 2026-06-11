@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ interface Plan {
 
 export default function PlansClient({ plans: initialPlans }: { plans: Plan[] }) {
   const [plans, setPlans]           = useState<Plan[]>(initialPlans);
+  const [loading, setLoading]       = useState(initialPlans.length === 0);
   const [formOpen, setFormOpen]     = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editPlan, setEditPlan]     = useState<Plan | null>(null);
@@ -42,8 +43,17 @@ export default function PlansClient({ plans: initialPlans }: { plans: Plan[] }) 
       if (data.success) setPlans(data.plans);
     } catch (err) {
       console.error("[PlansClient] refresh error:", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
+
+  // Fetch on mount when no initial data was passed (client-only mode)
+  useEffect(() => {
+    if (initialPlans.length === 0) {
+      refresh();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreate() {
     setEditPlan(null);
@@ -93,83 +103,95 @@ export default function PlansClient({ plans: initialPlans }: { plans: Plan[] }) 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {plans.map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>
-                        {plan.name}
-                        {plan.badge && (
-                          <span
-                            className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded"
-                            style={{ background: `${plan.badgeColor ?? "#6366f1"}22`, color: plan.badgeColor ?? "#6366f1" }}
-                          >
-                            {plan.badge}
-                          </span>
-                        )}
+              {loading ? (
+                [0,1,2,3].map((i) => (
+                  <TableRow key={i}>
+                    {[0,1,2,3,4,5,6,7,8,9].map((j) => (
+                      <TableCell key={j}>
+                        <div className="h-4 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.06)", width: j === 0 ? 120 : 60 }} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                plans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>
+                          {plan.name}
+                          {plan.badge && (
+                            <span
+                              className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded"
+                              style={{ background: `${plan.badgeColor ?? "#6366f1"}22`, color: plan.badgeColor ?? "#6366f1" }}
+                            >
+                              {plan.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs" style={{ color: "var(--admin-text-muted)" }}>{plan.slug}</div>
                       </div>
-                      <div className="text-xs" style={{ color: "var(--admin-text-muted)" }}>{plan.slug}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>
-                      {plan.power >= 1_000_000 ? (plan.power/1_000_000).toFixed(1)+"M" : plan.power >= 1_000 ? (plan.power/1_000).toFixed(0)+"K" : plan.power}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {plan.bonus > 0
-                      ? <Badge variant="success" pill>+{plan.bonus >= 1_000_000 ? (plan.bonus/1_000_000).toFixed(1)+"M" : (plan.bonus/1_000).toFixed(0)+"K"}</Badge>
-                      : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
-                  </TableCell>
-                  <TableCell>
-                    {plan.price === 0
-                      ? <Badge variant="info" pill>FREE</Badge>
-                      : <span className="font-bold text-sm" style={{ color: "#f59e0b" }}>{plan.price} TON</span>}
-                  </TableCell>
-                  <TableCell>
-                    <span style={{ color: "var(--admin-text-muted)" }}>{plan.duration}d</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
-                      {plan.finalReturn ?? "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span style={{ color: "var(--admin-text-muted)" }}>{plan._count.contracts}</span>
-                  </TableCell>
-                  <TableCell>
-                    {plan.isActive
-                      ? <Badge variant="success" pill>Yes</Badge>
-                      : <Badge variant="secondary" pill>Hidden</Badge>}
-                  </TableCell>
-                  <TableCell>
-                    {plan.isFree
-                      ? <Badge variant="info" pill>Yes</Badge>
-                      : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => openEdit(plan)}
-                        aria-label="Edit"
-                      >
-                        <i className="fa-solid fa-pen text-xs" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => openDelete(plan)}
-                        aria-label="Delete"
-                        className="hover:!border-red-500/50 hover:!text-red-400"
-                      >
-                        <i className="fa-solid fa-trash text-xs" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-sm" style={{ color: "var(--admin-text)" }}>
+                        {plan.power >= 1_000_000 ? (plan.power/1_000_000).toFixed(1)+"M" : plan.power >= 1_000 ? (plan.power/1_000).toFixed(0)+"K" : plan.power}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {plan.bonus > 0
+                        ? <Badge variant="success" pill>+{plan.bonus >= 1_000_000 ? (plan.bonus/1_000_000).toFixed(1)+"M" : (plan.bonus/1_000).toFixed(0)+"K"}</Badge>
+                        : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {plan.price === 0
+                        ? <Badge variant="info" pill>FREE</Badge>
+                        : <span className="font-bold text-sm" style={{ color: "#f59e0b" }}>{plan.price} TON</span>}
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ color: "var(--admin-text-muted)" }}>{plan.duration}d</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs" style={{ color: "var(--admin-text-muted)" }}>
+                        {plan.finalReturn ?? "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ color: "var(--admin-text-muted)" }}>{plan._count.contracts}</span>
+                    </TableCell>
+                    <TableCell>
+                      {plan.isActive
+                        ? <Badge variant="success" pill>Yes</Badge>
+                        : <Badge variant="secondary" pill>Hidden</Badge>}
+                    </TableCell>
+                    <TableCell>
+                      {plan.isFree
+                        ? <Badge variant="info" pill>Yes</Badge>
+                        : <span style={{ color: "var(--admin-text-muted)" }}>—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => openEdit(plan)}
+                          aria-label="Edit"
+                        >
+                          <i className="fa-solid fa-pen text-xs" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => openDelete(plan)}
+                          aria-label="Delete"
+                          className="hover:!border-red-500/50 hover:!text-red-400"
+                        >
+                          <i className="fa-solid fa-trash text-xs" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </Card>
