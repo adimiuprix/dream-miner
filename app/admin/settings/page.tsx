@@ -102,7 +102,28 @@ function FieldRow({
 
       {/* Right: input */}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-        {setting.type === "TEXT" ? (
+        {setting.key === "ton_network" ? (
+          <select
+            value={value}
+            onChange={(e) => onChange(setting.key, e.target.value)}
+            style={{
+              flex: 1, background: "var(--admin-bg)",
+              border: `1px solid ${isDirty ? "rgba(99,102,241,0.45)" : "var(--admin-border)"}`,
+              borderRadius: 8, color: "var(--admin-text)",
+              fontSize: 13, padding: "0 12px", height: 36,
+              outline: "none", cursor: "pointer",
+              appearance: "none",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 12px center",
+              paddingRight: 36,
+              transition: "border-color 0.15s",
+            }}
+          >
+            <option value="testnet">testnet</option>
+            <option value="mainnet">mainnet</option>
+          </select>
+        ) : setting.type === "TEXT" ? (
           <textarea
             value={setting.isSecret && !revealed ? "" : value}
             placeholder={setting.isSecret && !revealed ? "Click 👁 to reveal and edit" : "Enter value…"}
