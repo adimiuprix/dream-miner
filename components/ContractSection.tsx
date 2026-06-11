@@ -141,7 +141,7 @@ function ContractCard({ contract }: { contract: Contract }) {
 }
 
 // How many cards are fully visible before scroll kicks in
-const VISIBLE_CARDS = 3;
+const VISIBLE_CARDS = 2;
 // Approximate height of one ContractCard (px) — update if card height changes
 const CARD_HEIGHT_PX = 96;
 // Gap between cards (px) — matches gap-2 = 8px
