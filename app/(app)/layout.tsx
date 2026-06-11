@@ -5,12 +5,8 @@ import { MiningProvider } from "@/components/MiningProvider";
 import { TonConnectProvider } from "@/components/TonConnectProvider";
 import AppWrapper from "@/components/AppWrapper";
 import { CronTrigger } from "@/components/CronTrigger";
+import { Toaster } from "@/components/ui/toast";
 
-/**
- * Layout khusus Telegram Mini App.
- * Semua provider (Telegram, TonConnect, Auth, Mining) hanya aktif di sini.
- * Halaman /admin tidak mewarisi layout ini.
- */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -24,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <MiningProvider>
               <CronTrigger />
               <AppWrapper>{children}</AppWrapper>
+              <Toaster />
             </MiningProvider>
           </AuthProvider>
         </TonConnectProvider>

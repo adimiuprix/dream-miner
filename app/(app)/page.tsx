@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import MiningRing from "@/components/MiningRing";
 import TopBar from "@/components/TopBar";
 import dynamic from "next/dynamic";
+import { toast } from "@/components/ui/toast";
 
 const HashCounter = dynamic(() => import("@/components/HashCounter"), { ssr: false });
 
@@ -23,7 +24,7 @@ export default function HomePage() {
 
   async function claimFreePlan() {
     if (!user) {
-      alert("Please log in first.");
+      toast.create({ title: "Please log in first.", type: "error" });
       return;
     }
 
@@ -38,17 +39,16 @@ export default function HomePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error ?? "Failed to claim free plan.");
+        toast.create({ title: data.error ?? "Failed to claim free plan.", type: "error" });
         return;
       }
 
-      // Refresh mining stats secara langsung tanpa reload halaman
       await refresh();
 
-      alert("Free plan activated!");
+      toast.create({ title: "Free plan activated!", description: "Your mining has started.", type: "success" });
     } catch (error) {
       console.error("claimFreePlan error:", error);
-      alert("Something went wrong. Please try again.");
+      toast.create({ title: "Something went wrong.", description: "Please try again.", type: "error" });
     } finally {
       setClaimLoading(false);
     }

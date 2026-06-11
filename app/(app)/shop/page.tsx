@@ -7,6 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import PlanCard, { PowerPlan } from "@/components/PlanCard";
 import ShopFooter from "@/components/ShopFooter";
 import { createPaymentTransaction, PAYMENT_RECEIVER_ADDRESS } from "@/lib/tonPayment";
+import { toast } from "@/components/ui/toast";
 
 export default function ShopPage() {
   const [tonConnectUI] = useTonConnectUI();
@@ -43,7 +44,7 @@ export default function ShopPage() {
 
   const handlePurchase = async (planId: string) => {
     if (!user) {
-      alert("Please log in first");
+      toast.create({ title: "Please log in first.", type: "error" });
       return;
     }
 
@@ -53,26 +54,20 @@ export default function ShopPage() {
     try {
       setLoading(planId);
 
-      // ── PAID PLAN: require wallet ─────────────────────────────────
       if (!wallet) {
         await tonConnectUI.openModal();
         setLoading(null);
         return;
       }
 
-      // Create payment transaction
       const transaction = createPaymentTransaction({
         to: PAYMENT_RECEIVER_ADDRESS,
         amount: plan.price.toString(),
         payload: `Dream Miner - ${plan.name} POWER`,
       });
 
-      // Send transaction
       const result = await tonConnectUI.sendTransaction(transaction);
 
-      console.log("Transaction sent to blockchain:", result);
-
-      // Save to database with PENDING status
       const response = await fetch("/api/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,34 +83,36 @@ export default function ShopPage() {
       const data = await response.json();
 
       if (!data.success) {
-        alert("Failed to process purchase: " + data.error);
+        toast.create({ title: "Purchase failed.", description: data.error, type: "error" });
         setLoading(null);
         return;
       }
 
-      console.log("Transaction saved to database:", data.transaction);
+      toast.create({ title: "Transaction sent!", description: "Verifying on blockchain...", type: "loading" });
 
-      // Show pending message
-      alert("Transaction sent! Verifying on blockchain...");
-
-      // Start verification polling
       const transactionId = data.transaction.id;
       const verified = await pollVerificationStatus(transactionId);
 
       if (verified) {
-        alert(`Success! You purchased ${plan.name} POWER. Power has been added to your account.`);
-        // Reload to show updated power
+        toast.create({
+          title: "Purchase successful!",
+          description: `${plan.name} POWER has been added to your account.`,
+          type: "success",
+        });
         window.location.reload();
       } else {
-        alert("Transaction verification failed or timed out. Please contact support if payment was deducted.");
+        toast.create({
+          title: "Verification failed or timed out.",
+          description: "Contact support if payment was deducted.",
+          type: "error",
+        });
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
-
       if (error.message?.includes("cancel")) {
-        alert("Transaction cancelled");
+        toast.create({ title: "Transaction cancelled.", type: "info" });
       } else {
-        alert("Failed to complete purchase: " + error.message);
+        toast.create({ title: "Purchase failed.", description: error.message, type: "error" });
       }
     } finally {
       setLoading(null);

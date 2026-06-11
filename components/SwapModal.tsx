@@ -7,6 +7,7 @@ import {
   DialogBody,
 } from "@/components/ui/dialog";
 import { AlertTriangle, User, ArrowDownUp, Shield } from "lucide-react";
+import { toast } from "@/components/ui/toast";
 
 interface SwapPreview {
   canSwap: boolean;
@@ -65,7 +66,7 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
 
     // Guard: wallet harus ada sebelum swap dieksekusi
     if (!preview.hasWallet) {
-      alert("⚠️ No wallet connected.\n\nPlease connect your TON wallet first before swapping.");
+      toast.create({ title: "No wallet connected.", description: "Please connect your TON wallet first before swapping.", type: "warning" });
       return;
     }
 
@@ -88,16 +89,12 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
       // Success - close modal and notify parent
       onOpenChange({ open: false });
       onSwapComplete?.();
-      
-      // Optional: Show success message
-      setTimeout(() => {
-        alert(
-          `✅ Success!\n\n` +
-          `Swapped: ${data.swap.hashesSwapped.toFixed(2)} HASHES\n` +
-          `Received: ${data.swap.tonReceived.toFixed(4)} TON\n` +
-          `New balance: ${data.swap.newTonBalance.toFixed(4)} TON`
-        );
-      }, 100);
+
+      toast.create({
+        title: "Swap successful!",
+        description: `Swapped ${data.swap.hashesSwapped.toFixed(2)} HASHES → ${data.swap.tonReceived.toFixed(4)} TON`,
+        type: "success",
+      });
     } catch (err: any) {
       console.error("Swap error:", err);
       setError(err.message || "Failed to swap");

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { SwapModal } from "./SwapModal";
+import { toast } from "@/components/ui/toast";
 
 export default function SwapCard() {
   const { user } = useAuth();
@@ -11,11 +12,11 @@ export default function SwapCard() {
 
   const handleOpenModal = () => {
     if (!user?.id) {
-      alert("Please log in first");
+      toast.create({ title: "Please log in first.", type: "error" });
       return;
     }
     if (!user.walletAddress) {
-      alert("⚠️ No wallet connected.\n\nPlease connect your TON wallet first before swapping.");
+      toast.create({ title: "No wallet connected.", description: "Please connect your TON wallet first before swapping.", type: "warning" });
       return;
     }
     setIsModalOpen(true);
