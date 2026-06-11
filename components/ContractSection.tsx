@@ -140,10 +140,20 @@ function ContractCard({ contract }: { contract: Contract }) {
   );
 }
 
+// How many cards are fully visible before scroll kicks in
+const VISIBLE_CARDS = 3;
+// Approximate height of one ContractCard (px) — update if card height changes
+const CARD_HEIGHT_PX = 96;
+// Gap between cards (px) — matches gap-2 = 8px
+const CARD_GAP_PX = 8;
+
 export default function ContractSection() {
   const { user } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  // true by default — panel starts at top with content below
+  const [canScrollMore, setCanScrollMore] = useState(true);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -166,21 +176,42 @@ export default function ContractSection() {
       .finally(() => setLoading(false));
   }, [user?.id]);
 
+  // Max height = VISIBLE_CARDS full cards + peek of next card
+  const maxHeight =
+    VISIBLE_CARDS * CARD_HEIGHT_PX +
+    VISIBLE_CARDS * CARD_GAP_PX +
+    CARD_HEIGHT_PX * 0.35; // ~35% peek of the next card
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    setIsScrolled(el.scrollTop > 8);
+    setCanScrollMore(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
+  };
+
+  // Check if fade-bottom should show on initial render
+  const showScrollPanel = !loading && contracts.length > VISIBLE_CARDS;
+
   return (
     <div className="px-4 mb-3">
-      {/* Section label */}
-      <p
-        className="mb-2"
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          color: "#404040",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}
-      >
-        YOUR CONTRACTS
-      </p>
+      {/* Section label + contract count */}
+      <div className="flex items-center justify-between mb-2">
+        <p
+          style={{
+            fontSize: "10px",
+            fontWeight: 600,
+            color: "#404040",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}
+        >
+          YOUR CONTRACTS
+        </p>
+        {!loading && contracts.length > 0 && (
+          <p style={{ fontSize: "10px", color: "#404040" }}>
+            {contracts.filter((c) => c.status === "ACTIVE").length} active
+          </p>
+        )}
+      </div>
 
       {loading ? (
         /* Skeleton */
@@ -201,7 +232,58 @@ export default function ContractSection() {
           <i className="fa-solid fa-box-open" style={{ color: "#333", fontSize: "24px" }} />
           <p className="text-xs" style={{ color: "#444" }}>No contracts yet. Buy a plan to start mining.</p>
         </div>
+      ) : showScrollPanel ? (
+        /* ── Scrollable panel (3+ contracts) ─────────────────────── */
+        <div className="relative">
+          {/* Top fade — appears after scrolling down */}
+          {isScrolled && (
+            <div
+              className="absolute top-0 left-0 right-0 z-10 pointer-events-none rounded-t-2xl"
+              style={{
+                height: 32,
+                background: "linear-gradient(to bottom, #0a0f0d, transparent)",
+              }}
+            />
+          )}
+
+          {/* Scrollable list */}
+          <div
+            onScroll={handleScroll}
+            style={{
+              maxHeight,
+              overflowY: "auto",
+              overscrollBehavior: "contain",
+              // Custom thin scrollbar
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(0,212,170,0.2) transparent",
+            }}
+            className="flex flex-col gap-2 pr-0.5"
+          >
+            {contracts.map((c) => (
+              <ContractCard key={c.id} contract={c} />
+            ))}
+          </div>
+
+          {/* Bottom fade — hint that more cards exist below */}
+          <div
+            className="absolute bottom-0 left-0 right-0 pointer-events-none rounded-b-2xl transition-opacity duration-200"
+            style={{
+              height: 48,
+              background: "linear-gradient(to top, #0a0f0d 10%, transparent)",
+              opacity: canScrollMore === false && isScrolled ? 0 : 1,
+            }}
+          >
+            {/* Scroll hint icon */}
+            <div className="flex justify-center pt-3">
+              <i
+                className="fa-solid fa-chevron-down"
+                style={{ color: "rgba(0,212,170,0.4)", fontSize: "10px" }}
+              />
+            </div>
+          </div>
+        </div>
       ) : (
+        /* ── Normal list (1–2 contracts, no scroll needed) ─────── */
         <div className="flex flex-col gap-2">
           {contracts.map((c) => (
             <ContractCard key={c.id} contract={c} />
