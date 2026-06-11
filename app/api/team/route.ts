@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { JOIN_BONUS_POWER, PURCHASE_BONUS_PERCENT } from "@/lib/referralBonus";
+import { getReferralBonusConfig } from "@/lib/referralBonus";
 
 export interface TeamMember {
   id: string;
@@ -139,6 +139,8 @@ export async function GET(request: NextRequest) {
     // ── Power log ────────────────────────────────────────────────────────────
     const powerLog: PowerLogEntry[] = [];
 
+    const { joinBonusPower, purchaseBonusPercent } = await getReferralBonusConfig();
+
     for (const r of referrals) {
       const name = r.username || [r.firstName, r.lastName].filter(Boolean).join(" ");
 
@@ -147,15 +149,15 @@ export async function GET(request: NextRequest) {
         id:          `join-${r.id}`,
         type:        "referral_join",
         memberName:  name,
-        powerEarned: JOIN_BONUS_POWER,
+        powerEarned: joinBonusPower,
         date:        r.createdAt.toISOString(),
       });
 
-      // Purchase events — 50% dari power plan yang dibeli
+      // Purchase events — % dari power plan yang dibeli
       for (const tx of r.transactions) {
-        const meta       = JSON.parse(tx.metadata || "{}");
-        const planPower  = (meta.power as number | undefined) ?? 0;
-        const earned     = Math.floor(planPower * PURCHASE_BONUS_PERCENT);
+        const meta      = JSON.parse(tx.metadata || "{}");
+        const planPower = (meta.power as number | undefined) ?? 0;
+        const earned    = Math.floor(planPower * purchaseBonusPercent);
 
         powerLog.push({
           id:          `purchase-${tx.id}`,
@@ -171,8 +173,8 @@ export async function GET(request: NextRequest) {
 
     // ── Bonus config untuk display di UI ─────────────────────────────────────
     const bonusConfig: BonusConfig = {
-      joinBonusPower:       JOIN_BONUS_POWER,
-      purchaseBonusPercent: Math.round(PURCHASE_BONUS_PERCENT * 100),
+      joinBonusPower,
+      purchaseBonusPercent: Math.round(purchaseBonusPercent * 100),
     };
 
     return NextResponse.json({

@@ -1,17 +1,32 @@
 /**
- * Exchange rate configuration
- * 1,000 HASHES = 0.0144 TON
- * ~69,444 HASHES = 1 TON
+ * Exchange rate — values sourced from AppSetting (DB).
+ * Fallback to hardcoded defaults if DB is unavailable.
  */
-export const HASH_TO_TON_RATE = 0.0000144; // 1 HASH = 0.0000144 TON
-export const MINIMUM_SWAP_HASHES = 1000;
+import { getSettingNumber } from "@/lib/settings";
+import { SETTING_KEYS } from "@/lib/settings";
 
-/** Convert hashes to estimated TON */
-export function hashesToTon(hashes: number): number {
-  return hashes * HASH_TO_TON_RATE;
+// Fallback defaults (used if DB is unavailable)
+const DEFAULT_HASH_TO_TON_RATE    = 0.0000144;
+const DEFAULT_MINIMUM_SWAP_HASHES = 1000;
+
+/** Get current exchange rate from DB */
+export async function getHashToTonRate(): Promise<number> {
+  return getSettingNumber(SETTING_KEYS.HASH_TO_TON_RATE, DEFAULT_HASH_TO_TON_RATE);
 }
 
-/** Convert TON to equivalent hashes */
-export function tonToHashes(ton: number): number {
-  return ton / HASH_TO_TON_RATE;
+/** Get minimum swap hashes from DB */
+export async function getMinimumSwapHashes(): Promise<number> {
+  return getSettingNumber(SETTING_KEYS.MINIMUM_SWAP_HASHES, DEFAULT_MINIMUM_SWAP_HASHES);
+}
+
+/** Convert hashes to estimated TON using DB rate */
+export async function hashesToTon(hashes: number): Promise<number> {
+  const rate = await getHashToTonRate();
+  return hashes * rate;
+}
+
+/** Convert TON to equivalent hashes using DB rate */
+export async function tonToHashes(ton: number): Promise<number> {
+  const rate = await getHashToTonRate();
+  return ton / rate;
 }

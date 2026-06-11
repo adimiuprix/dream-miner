@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import PageHeader from "@/components/ui/PageHeader";
 import PlanCard, { PowerPlan } from "@/components/PlanCard";
 import ShopFooter from "@/components/ShopFooter";
-import { createPaymentTransaction, PAYMENT_RECEIVER_ADDRESS } from "@/lib/tonPayment";
+import { createPaymentTransaction } from "@/lib/tonPayment";
 import { toast } from "@/components/ui/toast";
 
 export default function ShopPage() {
@@ -17,20 +17,25 @@ export default function ShopPage() {
   const [plans, setPlans] = useState<PowerPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState<string | null>(null);
+  const [receiverAddress, setReceiverAddress] = useState<string>("");
 
-  // Fetch plans from database on mount
+  // Fetch plans and config on mount
   useEffect(() => {
-    const fetchPlans = async () => {
+    const init = async () => {
       try {
         setPlansLoading(true);
-        const response = await fetch("/api/plans");
-        const data = await response.json();
+        const [plansRes, configRes] = await Promise.all([
+          fetch("/api/plans"),
+          fetch("/api/config"),
+        ]);
 
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || "Failed to fetch plans");
-        }
+        const plansData  = await plansRes.json();
+        const configData = await configRes.json();
 
-        setPlans(data.plans);
+        if (!plansRes.ok || !plansData.success) throw new Error(plansData.error || "Failed to fetch plans");
+        if (configRes.ok && configData.success) setReceiverAddress(configData.config.receiverAddress);
+
+        setPlans(plansData.plans);
       } catch (err: any) {
         console.error("Failed to load plans:", err);
         setPlansError(err.message || "Failed to load plans");
@@ -38,8 +43,7 @@ export default function ShopPage() {
         setPlansLoading(false);
       }
     };
-
-    fetchPlans();
+    init();
   }, []);
 
   const handlePurchase = async (planId: string) => {
@@ -61,7 +65,7 @@ export default function ShopPage() {
       }
 
       const transaction = createPaymentTransaction({
-        to: PAYMENT_RECEIVER_ADDRESS,
+        to: receiverAddress,
         amount: plan.price.toString(),
         payload: `Dream Miner - ${plan.name} POWER`,
       });
@@ -76,7 +80,7 @@ export default function ShopPage() {
           planId: plan.id,
           txHash: result.boc,
           fromAddress: wallet.account.address,
-          toAddress: PAYMENT_RECEIVER_ADDRESS,
+          toAddress: receiverAddress,
         }),
       });
 

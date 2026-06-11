@@ -1,90 +1,81 @@
 import { prisma } from "@/lib/prisma";
+import { getSettingNumber, SETTING_KEYS } from "@/lib/settings";
 
-// ─── Konstanta bonus — single source of truth ────────────────────────────────
-export const JOIN_BONUS_POWER       = 2_000;        // power flat saat downline join
-export const PURCHASE_BONUS_PERCENT = 0.5;          // 50% dari power plan downline
+async function getBonusConfig() {
+  const [joinPower, purchasePercent] = await Promise.all([
+    getSettingNumber(SETTING_KEYS.JOIN_BONUS_POWER, 2_000),
+    getSettingNumber(SETTING_KEYS.PURCHASE_BONUS_PERCENT, 50),
+  ]);
+  return {
+    joinBonusPower:       joinPower,
+    purchaseBonusPercent: purchasePercent / 100, // stored as 50, used as 0.5
+  };
+}
 
 export async function giveJoinBonus(referrerId: string): Promise<void> {
   try {
-    const bonusPlan = await prisma.plan.findUnique({
-      where: { slug: "bonus" },
-    });
+    const { joinBonusPower } = await getBonusConfig();
 
+    const bonusPlan = await prisma.plan.findUnique({ where: { slug: "bonus" } });
     if (!bonusPlan) {
       console.warn("[ReferralBonus] Plan 'bonus' not found in DB. Run db:seed.");
       return;
     }
 
     const nowMs       = Date.now();
-    const durationMs  = 1 * 24 * 60 * 60 * 1000; // 1 hari
-    const expiresAtMs = nowMs + durationMs;
+    const expiresAtMs = nowMs + 24 * 60 * 60 * 1000; // 1 day
 
     await prisma.contract.create({
       data: {
-        userId:    referrerId,
-        planId:    bonusPlan.id,
-        power:     JOIN_BONUS_POWER,
-        bonus:     0,
-        status:    "ACTIVE",
-        expiresAt: BigInt(expiresAtMs),
-        lastSyncAt: BigInt(nowMs),
+        userId: referrerId, planId: bonusPlan.id,
+        power: joinBonusPower, bonus: 0, status: "ACTIVE",
+        expiresAt: BigInt(expiresAtMs), lastSyncAt: BigInt(nowMs),
       },
     });
 
-    console.log(
-      `[ReferralBonus] JOIN bonus: ${JOIN_BONUS_POWER} power → referrer ${referrerId} (1 day)`
-    );
+    console.log(`[ReferralBonus] JOIN bonus: ${joinBonusPower} power → referrer ${referrerId}`);
   } catch (err) {
-    // Bonus gagal tidak boleh menghentikan flow utama
     console.error("[ReferralBonus] giveJoinBonus error:", err);
   }
 }
 
-/**
- * Beri purchase bonus ke referrer saat downline beli plan berbayar.
- * Power bonus = 50% dari total power plan yang dibeli downline.
- * Durasi = ikut durasi plan yang dibeli downline.
- */
 export async function givePurchaseBonus(
   referrerId: string,
-  planPower: number,   // base power plan downline
-  planBonus: number,   // bonus power plan downline
+  planPower: number,
+  planBonus: number,
   planDurationDays: number
 ): Promise<void> {
   try {
-    const bonusPlan = await prisma.plan.findUnique({
-      where: { slug: "bonus" },
-    });
+    const { purchaseBonusPercent } = await getBonusConfig();
 
+    const bonusPlan = await prisma.plan.findUnique({ where: { slug: "bonus" } });
     if (!bonusPlan) {
       console.warn("[ReferralBonus] Plan 'bonus' not found in DB. Run db:seed.");
       return;
     }
 
-    const totalPlanPower  = planPower + planBonus;
-    const bonusPower      = Math.floor(totalPlanPower * PURCHASE_BONUS_PERCENT);
-
-    const nowMs       = Date.now();
-    const durationMs  = planDurationDays * 24 * 60 * 60 * 1000;
-    const expiresAtMs = nowMs + durationMs;
+    const totalPlanPower = planPower + planBonus;
+    const bonusPower     = Math.floor(totalPlanPower * purchaseBonusPercent);
+    const nowMs          = Date.now();
+    const expiresAtMs    = nowMs + planDurationDays * 24 * 60 * 60 * 1000;
 
     await prisma.contract.create({
       data: {
-        userId:     referrerId,
-        planId:     bonusPlan.id,
-        power:      bonusPower,
-        bonus:      0,
-        status:     "ACTIVE",
-        expiresAt:  BigInt(expiresAtMs),
-        lastSyncAt: BigInt(nowMs),
+        userId: referrerId, planId: bonusPlan.id,
+        power: bonusPower, bonus: 0, status: "ACTIVE",
+        expiresAt: BigInt(expiresAtMs), lastSyncAt: BigInt(nowMs),
       },
     });
 
     console.log(
-      `[ReferralBonus] PURCHASE bonus: ${bonusPower} power (50% of ${totalPlanPower}) ` +
-      `→ referrer ${referrerId} (${planDurationDays} days)`
+      `[ReferralBonus] PURCHASE bonus: ${bonusPower} power (${purchaseBonusPercent * 100}% of ${totalPlanPower}) → referrer ${referrerId}`
     );
   } catch (err) {
     console.error("[ReferralBonus] givePurchaseBonus error:", err);
   }
+}
+
+// ─── Export config for display (team page, etc.) ─────────────────────────────
+export async function getReferralBonusConfig() {
+  return getBonusConfig();
 }

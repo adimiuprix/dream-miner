@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import SubPageHeader from "../_components/SubPageHeader";
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? "DreamMinerBot";
+const BOT_USERNAME = "DreamMinerBot";
 
 export default function InvitePage() {
   const { user }    = useAuth();

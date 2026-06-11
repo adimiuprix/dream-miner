@@ -1,0 +1,17 @@
+# ─── Required ────────────────────────────────────────────────────────────────
+# Database connection — must be set in .env (Prisma needs this before DB is accessible)
+DATABASE_URL="postgresql://user:password@host:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://user:password@host:5432/postgres"
+
+# ─── Moved to AppSetting (manage via /admin/settings) ────────────────────────
+# The following were previously stored here but are now managed in the database:
+#
+#   TON_NETWORK             → hot_wallet_mnemonic setting
+#   TON_API_KEY             → ton_api_key setting
+#   HOT_WALLET_MNEMONIC     → hot_wallet_mnemonic setting
+#   TELEGRAM_BOT_TOKEN      → telegram_bot_token setting
+#   TELEGRAM_NOTIFY_CHAT_ID → telegram_notify_chat_id setting
+#   NEXT_PUBLIC_BOT_USERNAME→ bot_username setting
+#
+# After first deploy, run: npm run db:seed
+# Then go to /admin/settings to configure these values.

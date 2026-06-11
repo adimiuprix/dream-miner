@@ -18,9 +18,13 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { getSettingNumber, SETTING_KEYS } from "@/lib/settings";
 
-/** 100 000 power = 1 hash/detik */
-const POWER_TO_HASH_RATE = 100_000;
+const DEFAULT_POWER_TO_HASH_RATE = 100_000;
+
+async function getPowerToHashRate(): Promise<number> {
+  return getSettingNumber(SETTING_KEYS.POWER_TO_HASH_RATE, DEFAULT_POWER_TO_HASH_RATE);
+}
 
 export interface MiningStats {
   totalPower: number;
@@ -34,24 +38,20 @@ export interface MiningStats {
 // Internal helper: flush semua contract aktif milik userId
 // ─────────────────────────────────────────────────────────────────────────────
 async function flushActiveContracts(userId: string, nowMs: number): Promise<void> {
-  const contracts = await prisma.contract.findMany({
-    where: {
-      userId,
-      status: "ACTIVE",
-      expiresAt: { gt: BigInt(nowMs) },
-    },
-  });
+  const [contracts, powerToHashRate] = await Promise.all([
+    prisma.contract.findMany({
+      where: { userId, status: "ACTIVE", expiresAt: { gt: BigInt(nowMs) } },
+    }),
+    getPowerToHashRate(),
+  ]);
 
   if (contracts.length === 0) return;
 
   // Hitung delta per contract dan update secara paralel
   await Promise.all(
     contracts.map((c) => {
-      const elapsedSeconds = Math.max(
-        0,
-        (nowMs - Number(c.lastSyncAt)) / 1000
-      );
-      const powerPerSecond = (c.power + c.bonus) / POWER_TO_HASH_RATE;
+      const elapsedSeconds = Math.max(0, (nowMs - Number(c.lastSyncAt)) / 1000);
+      const powerPerSecond = (c.power + c.bonus) / powerToHashRate;
       const delta = elapsedSeconds * powerPerSecond;
 
       return prisma.contract.update({
@@ -89,6 +89,7 @@ export async function syncMiningProgress(userId: string): Promise<MiningStats | 
 export async function getMiningStatus(userId: string): Promise<MiningStats | null> {
   try {
     const nowMs = Date.now();
+    const powerToHashRate = await getPowerToHashRate();
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -105,12 +106,8 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
       (c) => c.status === "ACTIVE" && Number(c.expiresAt) > nowMs
     );
 
-    // Total power dari contract aktif
-    const totalPower = activeContracts.reduce(
-      (sum, c) => sum + c.power + c.bonus,
-      0
-    );
-    const miningRate = totalPower / POWER_TO_HASH_RATE;
+    const totalPower = activeContracts.reduce((sum, c) => sum + c.power + c.bonus, 0);
+    const miningRate = totalPower / powerToHashRate;
 
     // Total hashes yang sudah di-flush di semua contract (aktif + expired)
     const currentHashes = user.contracts.reduce(
@@ -118,13 +115,9 @@ export async function getMiningStatus(userId: string): Promise<MiningStats | nul
       0
     );
 
-    // Hashes "dalam perjalanan" dari contract aktif sejak lastSyncAt terakhir
     const pendingHashes = activeContracts.reduce((sum, c) => {
-      const elapsed = Math.max(
-        0,
-        (nowMs - Number(c.lastSyncAt)) / 1000
-      );
-      return sum + elapsed * ((c.power + c.bonus) / POWER_TO_HASH_RATE);
+      const elapsed = Math.max(0, (nowMs - Number(c.lastSyncAt)) / 1000);
+      return sum + elapsed * ((c.power + c.bonus) / powerToHashRate);
     }, 0);
 
     // lastSyncAt terbaru dari semua contract aktif (untuk baseline animasi)

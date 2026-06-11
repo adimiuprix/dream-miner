@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { syncMiningProgress } from "@/lib/miningService";
-import { HASH_TO_TON_RATE, MINIMUM_SWAP_HASHES, hashesToTon } from "@/lib/exchangeRate";
+import { getHashToTonRate, getMinimumSwapHashes, hashesToTon } from "@/lib/exchangeRate";
 import { NextRequest, NextResponse } from "next/server";
 import { TonClient, WalletContractV4, internal, toNano } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
 import { notifySwapCompleted } from "@/lib/telegramNotification";
+import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
 /**
  * POST /api/swap
@@ -42,12 +43,17 @@ export async function POST(request: NextRequest) {
     const currentHashes = miningStats.currentHashes;
 
     // ── 2. Validasi ───────────────────────────────────────────────────────────
-    if (currentHashes < MINIMUM_SWAP_HASHES) {
+    const [minimumSwapHashes, hashToTonRate] = await Promise.all([
+      getMinimumSwapHashes(),
+      getHashToTonRate(),
+    ]);
+
+    if (currentHashes < minimumSwapHashes) {
       return NextResponse.json(
         {
-          error: `Insufficient hashes. Minimum ${MINIMUM_SWAP_HASHES} HASHES required.`,
+          error: `Insufficient hashes. Minimum ${minimumSwapHashes} HASHES required.`,
           currentHashes,
-          minimumRequired: MINIMUM_SWAP_HASHES,
+          minimumRequired: minimumSwapHashes,
         },
         { status: 400 }
       );
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 3. Hitung jumlah & simpan swap record (PENDING) ───────────────────────
-    const tonAmount    = hashesToTon(currentHashes);
+    const tonAmount    = await hashesToTon(currentHashes);
     const hashesToSwap = currentHashes;
     const tonBalanceBefore = user.tonBalance;
 
@@ -91,7 +97,7 @@ export async function POST(request: NextRequest) {
           userId,
           hashesSwapped:       hashesToSwap,
           tonReceived:         tonAmount,
-          exchangeRate:        HASH_TO_TON_RATE,
+          exchangeRate:        hashToTonRate,
           hashesBalanceBefore: hashesToSwap,
           hashesBalanceAfter:  0,
           tonBalanceBefore,
@@ -105,17 +111,22 @@ export async function POST(request: NextRequest) {
     let txHash: string | null = null;
 
     try {
-      const mnemonic = process.env.HOT_WALLET_MNEMONIC;
-      if (!mnemonic) throw new Error("HOT_WALLET_MNEMONIC not configured");
+      const [mnemonic, tonNetwork, tonApiKey] = await Promise.all([
+        getSetting(SETTING_KEYS.HOT_WALLET_MNEMONIC),
+        getSetting(SETTING_KEYS.TON_NETWORK, "testnet"),
+        getSetting(SETTING_KEYS.TON_API_KEY),
+      ]);
 
-      const isMainnet = process.env.TON_NETWORK === "mainnet";
+      if (!mnemonic) throw new Error("hot_wallet_mnemonic not configured in AppSetting");
+
+      const isMainnet = tonNetwork === "mainnet";
       const endpoint  = isMainnet
         ? "https://toncenter.com/api/v2/jsonRPC"
         : "https://testnet.toncenter.com/api/v2/jsonRPC";
 
       const client = new TonClient({
         endpoint,
-        apiKey: process.env.TON_API_KEY,
+        apiKey: tonApiKey || undefined,
       });
 
       // Derive keypair & buka wallet
@@ -207,7 +218,7 @@ export async function POST(request: NextRequest) {
         id:                  completedSwap.id,
         hashesSwapped:       hashesToSwap,
         tonReceived:         tonAmount,
-        exchangeRate:        HASH_TO_TON_RATE,
+        exchangeRate:        hashToTonRate,
         newTonBalance:       tonBalanceBefore + tonAmount,
         hashesBalanceBefore: hashesToSwap,
         tonBalanceBefore,
@@ -254,17 +265,22 @@ export async function GET(request: NextRequest) {
       select: { accumulatedHashes: true },
     });
 
+    const [minimumSwapHashes, hashToTonRate] = await Promise.all([
+      getMinimumSwapHashes(),
+      getHashToTonRate(),
+    ]);
+
     const currentHashes = contracts.reduce((sum, c) => sum + c.accumulatedHashes, 0);
-    const tonAmount     = hashesToTon(currentHashes);
-    const canSwap       = currentHashes >= MINIMUM_SWAP_HASHES && !!user.walletAddress;
+    const tonAmount     = currentHashes * hashToTonRate;
+    const canSwap       = currentHashes >= minimumSwapHashes && !!user.walletAddress;
 
     return NextResponse.json({
       success: true,
       preview: {
         currentHashes,
         estimatedTon:       tonAmount,
-        exchangeRate:       HASH_TO_TON_RATE,
-        minimumRequired:    MINIMUM_SWAP_HASHES,
+        exchangeRate:       hashToTonRate,
+        minimumRequired:    minimumSwapHashes,
         canSwap,
         hasWallet:          !!user.walletAddress,
         currentTonBalance:  user.tonBalance,

@@ -1,14 +1,12 @@
 import { Address, beginCell, toNano } from "@ton/core";
+import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
 export interface PaymentRequest {
-  to: string;      // Receiver wallet address
-  amount: string;  // Amount in TON
-  payload?: string; // Optional comment/memo
+  to: string;
+  amount: string;
+  payload?: string;
 }
 
-/**
- * Create a TON payment transaction object for TonConnect UI.
- */
 export function createPaymentTransaction(request: PaymentRequest) {
   const { to, amount, payload } = request;
 
@@ -19,7 +17,7 @@ export function createPaymentTransaction(request: PaymentRequest) {
   }
 
   return {
-    validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+    validUntil: Math.floor(Date.now() / 1000) + 600,
     messages: [
       {
         address: to,
@@ -37,12 +35,10 @@ export function createPaymentTransaction(request: PaymentRequest) {
   };
 }
 
-/**
- * Your receiving wallet address.
- * IMPORTANT: Replace with your actual TON wallet address.
- */
-export const PAYMENT_RECEIVER_ADDRESS =
-  "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD";
-
-// NOTE: Plan definitions have been moved to the database (Plan model).
-// Use GET /api/plans to fetch plans, or prisma.plan.findMany() server-side.
+/** Get payment receiver address from DB settings */
+export async function getPaymentReceiverAddress(): Promise<string> {
+  return getSetting(
+    SETTING_KEYS.PAYMENT_RECEIVER,
+    "EQC23M4PIfrYhh8FTrwUryFV_Accw-ZrTHFXhtEHvBQWJ_oD"
+  );
+}

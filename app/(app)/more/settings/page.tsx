@@ -87,7 +87,7 @@ export default function SettingsPage() {
       >
         {[
           { label: "Version",   value: "1.0.0" },
-          { label: "Network",   value: process.env.NEXT_PUBLIC_TON_NETWORK === "mainnet" ? "Mainnet" : "Testnet" },
+          { label: "Network",   value: "mainnet" ? "Mainnet" : "Testnet" },
         ].map((item, i, arr) => (
           <div key={item.label} className="flex items-center justify-between px-4 py-3.5"
             style={{ borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
