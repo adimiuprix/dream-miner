@@ -16,9 +16,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cari free plan dari database
+    // Cari free plan dari database — gunakan slug eksplisit agar tidak
+    // mengambil plan "bonus" yang juga isFree: true
     const freePlan = await prisma.plan.findFirst({
-      where: { isFree: true, isActive: true },
+      where: { slug: "plan-free", isFree: true, isActive: true },
     });
 
     if (!freePlan) {
@@ -31,12 +32,12 @@ export async function POST(request: NextRequest) {
     const nowMs       = Date.now();
     const expiresAtMs = nowMs + FREE_PLAN_DURATION_MS;
 
-    // Cek apakah user sudah punya free contract ACTIVE
+    // Cek apakah user sudah punya free contract ACTIVE yang belum expired
     const activeContract = await prisma.contract.findFirst({
       where: {
         userId,
         status: "ACTIVE",
-        plan: { isFree: true },
+        plan: { slug: "plan-free", isFree: true },
         expiresAt: { gt: BigInt(nowMs) },
       },
     });
@@ -51,15 +52,12 @@ export async function POST(request: NextRequest) {
     // Cari contract free yang sudah expired — dua kondisi:
     //   a) status sudah "EXPIRED" di DB (cron sudah jalan), atau
     //   b) status masih "ACTIVE" tapi expiresAt sudah lewat (cron belum jalan)
-    // Kondisi (b) adalah penyebab bug "You already have an active free plan":
-    // activeContract query tidak match karena expiresAt sudah lewat, tapi
-    // expiredContract query juga tidak match karena status masih "ACTIVE" di DB.
-    // Akibatnya kode masuk ke `else` dan membuat contract baru — lalu klik
-    // berikutnya menemukan dua contract ACTIVE dan memblokir reaktivasi.
+    // Filter plan.slug: "plan-free" memastikan contract bonus (yang juga isFree)
+    // tidak ikut tereaktivasi.
     const expiredContract = await prisma.contract.findFirst({
       where: {
         userId,
-        plan: { isFree: true },
+        plan: { slug: "plan-free", isFree: true },
         OR: [
           { status: "EXPIRED" },
           { status: "ACTIVE", expiresAt: { lte: BigInt(nowMs) } },
