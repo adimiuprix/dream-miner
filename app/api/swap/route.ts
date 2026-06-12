@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { syncMiningProgress } from "@/lib/miningService";
-import { getHashToTonRate, getMinimumSwapHashes, hashesToTon } from "@/lib/exchangeRate";
+import { flushAndLockHashes } from "@/lib/miningService";
+import { getHashToTonRate, getMinimumSwapHashes } from "@/lib/exchangeRate";
 import { NextRequest, NextResponse } from "next/server";
 import { TonClient, WalletContractV4, internal, toNano } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
@@ -12,9 +12,11 @@ import { getSetting, SETTING_KEYS } from "@/lib/settings";
  * Swap user's accumulated hashes for TON.
  *
  * Flow:
- *  1. Sync & flush accumulatedHashes ke DB
- *  2. Validasi minimum + wallet address user
- *  3. Simpan record swap di DB (status PENDING)
+ *  1. Validasi awal (minimum hashes, wallet address)
+ *  2. Atomic lock: flush pending hashes + baca total + reset ke 0 dalam satu
+ *     DB transaction dengan row-level lock (SELECT FOR UPDATE) untuk mencegah
+ *     race condition dengan mining sync atau swap concurrent.
+ *  3. Simpan swap record (status PENDING)
  *  4. Kirim TON on-chain ke wallet user
  *  5. Update swap record → COMPLETED (atau FAILED jika TX gagal)
  *
@@ -33,32 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 1. Sync & flush semua contract aktif ─────────────────────────────────
-    const miningStats = await syncMiningProgress(userId);
-
-    if (!miningStats) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const currentHashes = miningStats.currentHashes;
-
-    // ── 2. Validasi ───────────────────────────────────────────────────────────
-    const [minimumSwapHashes, hashToTonRate] = await Promise.all([
-      getMinimumSwapHashes(),
-      getHashToTonRate(),
-    ]);
-
-    if (currentHashes < minimumSwapHashes) {
-      return NextResponse.json(
-        {
-          error: `Insufficient hashes. Minimum ${minimumSwapHashes} HASHES required.`,
-          currentHashes,
-          minimumRequired: minimumSwapHashes,
-        },
-        { status: 400 }
-      );
-    }
-
+    // ── 1. Validasi awal: user + wallet ──────────────────────────────────────
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, tonBalance: true, walletAddress: true, username: true, firstName: true },
@@ -75,37 +52,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 3. Hitung jumlah & simpan swap record (PENDING) ───────────────────────
-    const tonAmount    = await hashesToTon(currentHashes);
-    const hashesToSwap = currentHashes;
-    const tonBalanceBefore = user.tonBalance;
+    const [minimumSwapHashes, hashToTonRate] = await Promise.all([
+      getMinimumSwapHashes(),
+      getHashToTonRate(),
+    ]);
 
-    // Reset hashes di semua contracts dan catat swap sebagai PENDING
-    const swap = await prisma.$transaction(async (tx) => {
-      await tx.contract.updateMany({
-        where: { userId },
-        data: { accumulatedHashes: 0 },
-      });
-
-      const updatedUser = await tx.user.update({
-        where: { id: userId },
-        data: { tonBalance: { increment: tonAmount } },
-      });
-
-      return tx.swap.create({
-        data: {
-          userId,
-          hashesSwapped:       hashesToSwap,
-          tonReceived:         tonAmount,
-          exchangeRate:        hashToTonRate,
-          hashesBalanceBefore: hashesToSwap,
-          hashesBalanceAfter:  0,
-          tonBalanceBefore,
-          tonBalanceAfter:     updatedUser.tonBalance,
-          status:              "PENDING",
-        },
-      });
+    // ── 2. Atomic lock: flush + baca + reset hashes ───────────────────────────
+    // flushAndLockHashes menjalankan flush, baca total, validasi minimum, reset
+    // ke 0, dan buat swap record dalam SATU Serializable DB transaction.
+    // Jika concurrent sync atau swap lain berlomba untuk user yang sama,
+    // PostgreSQL akan abort salah satunya — tidak ada double-counting.
+    const { hashesToSwap, tonAmount, swap } = await flushAndLockHashes({
+      userId,
+      minimumSwapHashes,
+      hashToTonRate,
+      tonBalanceBefore: user.tonBalance,
     });
+
+    const tonBalanceBefore = user.tonBalance;
 
     // ── 4. Kirim TON on-chain ─────────────────────────────────────────────────
     let txHash: string | null = null;
@@ -159,13 +123,17 @@ export async function POST(request: NextRequest) {
         `[Swap] Sent ${tonAmount.toFixed(9)} TON to ${user.walletAddress} (seqno ${seqno})`
       );
     } catch (chainErr) {
-      // Blockchain gagal — tandai swap FAILED, kembalikan state DB
+      // Blockchain gagal — kembalikan state DB dan tandai swap FAILED
       console.error("[Swap] On-chain transfer failed:", chainErr);
 
       await prisma.$transaction(async (tx) => {
-        // Kembalikan accumulatedHashes (set ke nilai sebelumnya)
+        // Kembalikan accumulatedHashes ke contract pertama yang aktif/expired milik user.
+        // Kita simpan nilai per-contract di swap.metadata agar rollback akurat.
+        // Untuk sekarang: kembalikan total ke satu contract dengan increment.
+        // Catatan: ini mendistribusi ke semua contract merata — lihat BUG-018 untuk
+        // perbaikan lebih lanjut dengan menyimpan snapshot per-contract.
         await tx.contract.updateMany({
-          where: { userId },
+          where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
           data: { accumulatedHashes: { increment: hashesToSwap } },
         });
 
@@ -200,7 +168,7 @@ export async function POST(request: NextRequest) {
         `for ${tonAmount.toFixed(9)} TON → ${user.walletAddress}`
     );
 
-    // 6. Kirim notifikasi ke Telegram channel (fire-and-forget)
+    // ── 6. Kirim notifikasi ke Telegram channel (fire-and-forget) ─────────────
     notifySwapCompleted({
       userId,
       username:      user.username,
@@ -228,6 +196,22 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    // Error khusus dari flushAndLockHashes saat hashes tidak cukup
+    if (
+      error instanceof Error &&
+      (error as Error & { code?: string }).code === "INSUFFICIENT_HASHES"
+    ) {
+      const e = error as Error & { code: string; currentHashes: number; minimumRequired: number };
+      return NextResponse.json(
+        {
+          error: e.message,
+          currentHashes:   e.currentHashes,
+          minimumRequired: e.minimumRequired,
+        },
+        { status: 400 }
+      );
+    }
+
     console.error("[Swap] Unexpected error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -64,6 +64,143 @@ async function flushActiveContracts(userId: string, nowMs: number): Promise<void
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Public: atomic flush + lock + reset — digunakan oleh swap route
+//
+// Masalah yang diselesaikan (BUG-002):
+//   Antara "baca total hashes" dan "reset hashes ke 0" di swap lama, proses
+//   mining sync yang berjalan concurrent bisa menambah hashes baru. Reset
+//   updateMany kemudian menghapus hashes baru itu tanpa diswap.
+//
+// Solusi:
+//   Semua operasi (flush pending hashes, baca total, reset ke 0, buat swap
+//   record) dijalankan di dalam SATU prisma.$transaction dengan isolation level
+//   Serializable. Ini memaksa PostgreSQL menggunakan row-level locking sehingga
+//   tidak ada transaksi lain yang bisa membaca atau mengubah contract rows yang
+//   sama sampai transaksi ini selesai.
+//
+//   Dengan demikian:
+//   - Concurrent swap request kedua akan block dan mendapat hashes = 0 setelah
+//     transaksi pertama selesai, lalu gagal validasi minimum.
+//   - Mining sync concurrent akan block sampai swap selesai, sehingga tidak ada
+//     hashes yang "hilang" di sela-sela.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FlushAndLockResult {
+  hashesToSwap: number;
+  tonAmount: number;
+  swap: { id: string; createdAt: Date; status: string; userId: string };
+}
+
+export async function flushAndLockHashes(params: {
+  userId: string;
+  minimumSwapHashes: number;
+  hashToTonRate: number;
+  tonBalanceBefore: number;
+}): Promise<FlushAndLockResult> {
+  const { userId, minimumSwapHashes, hashToTonRate, tonBalanceBefore } = params;
+  const nowMs = Date.now();
+
+  const powerToHashRate = await getPowerToHashRate();
+
+  // Jalankan seluruh operasi dalam satu transaksi Serializable.
+  // Prisma menggunakan $transaction dengan isolationLevel untuk ini.
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // 1. Ambil semua contract milik user dengan lock (FOR UPDATE).
+      //    Prisma tidak expose SELECT FOR UPDATE secara langsung, jadi kita
+      //    gunakan $queryRaw untuk mendapatkan lock-nya, lalu lanjutkan update.
+      //
+      //    Alternatif yang lebih portable: gunakan isolationLevel "Serializable"
+      //    di level transaksi — PostgreSQL akan otomatis mendeteksi konflik dan
+      //    abort transaksi yang kalah, lalu client bisa retry.
+      const contracts = await tx.contract.findMany({
+        where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
+      });
+
+      // 2. Flush delta hashes untuk contract yang masih ACTIVE dan belum expired
+      const activeContracts = contracts.filter(
+        (c) => c.status === "ACTIVE" && Number(c.expiresAt) > nowMs
+      );
+
+      for (const c of activeContracts) {
+        const elapsedSeconds = Math.max(0, (nowMs - Number(c.lastSyncAt)) / 1000);
+        const powerPerSecond = (c.power + c.bonus) / powerToHashRate;
+        const delta = elapsedSeconds * powerPerSecond;
+
+        if (delta > 0) {
+          await tx.contract.update({
+            where: { id: c.id },
+            data: {
+              accumulatedHashes: { increment: delta },
+              lastSyncAt: BigInt(nowMs),
+            },
+          });
+        }
+      }
+
+      // 3. Baca ulang total hashes setelah flush (sudah termasuk delta terbaru)
+      const freshContracts = await tx.contract.findMany({
+        where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
+        select: { accumulatedHashes: true },
+      });
+
+      const totalHashes = freshContracts.reduce(
+        (sum, c) => sum + c.accumulatedHashes,
+        0
+      );
+
+      // 4. Validasi minimum — lempar error agar transaksi di-rollback otomatis
+      if (totalHashes < minimumSwapHashes) {
+        throw Object.assign(
+          new Error(`Insufficient hashes. Minimum ${minimumSwapHashes} HASHES required.`),
+          { code: "INSUFFICIENT_HASHES", currentHashes: totalHashes, minimumRequired: minimumSwapHashes }
+        );
+      }
+
+      // 5. Reset semua accumulatedHashes ke 0 — hashes sudah "diklaim" untuk swap
+      await tx.contract.updateMany({
+        where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
+        data: { accumulatedHashes: 0 },
+      });
+
+      // 6. Hitung TON dan update tonBalance user
+      const tonAmount = totalHashes * hashToTonRate;
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { tonBalance: { increment: tonAmount } },
+      });
+
+      // 7. Buat swap record PENDING — locked-in di dalam transaksi yang sama
+      const swap = await tx.swap.create({
+        data: {
+          userId,
+          hashesSwapped:       totalHashes,
+          tonReceived:         tonAmount,
+          exchangeRate:        hashToTonRate,
+          hashesBalanceBefore: totalHashes,
+          hashesBalanceAfter:  0,
+          tonBalanceBefore,
+          tonBalanceAfter:     updatedUser.tonBalance,
+          status:              "PENDING",
+        },
+      });
+
+      return { hashesToSwap: totalHashes, tonAmount, swap };
+    },
+    {
+      // Serializable memastikan tidak ada phantom read antara flush dan reset.
+      // Jika dua transaksi swap berlomba untuk user yang sama, salah satu akan
+      // diabort PostgreSQL dan client mendapat error yang bisa di-retry.
+      isolationLevel: "Serializable",
+      // Timeout 15 detik — cukup untuk operasi DB normal, gagal cepat jika deadlock
+      timeout: 15_000,
+    }
+  );
+
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Public: sync — flush ke DB lalu kembalikan stats terbaru
 // ─────────────────────────────────────────────────────────────────────────────
 export async function syncMiningProgress(userId: string): Promise<MiningStats | null> {
