@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/admin",              icon: "fa-solid fa-gauge",         label: "Dashboard"    },
@@ -16,7 +16,15 @@ const navItems = [
 
 export default function AdminMobileBar() {
   const pathname = usePathname();
+  const router   = useRouter();
   const [open, setOpen] = useState(false);
+
+  async function handleLogout() {
+    await fetch("/api/admin/auth", { method: "DELETE" });
+    setOpen(false);
+    router.push("/admin/login");
+    router.refresh();
+  }
 
   return (
     <>
@@ -64,7 +72,16 @@ export default function AdminMobileBar() {
                 </Link>
               ))}
             </nav>
-            <div className="admin-sidebar-footer">v1.0.0</div>
+            <div className="admin-sidebar-footer">
+              <button
+                onClick={handleLogout}
+                className="admin-nav-item"
+                style={{ width: "100%", background: "none", border: "none", cursor: "pointer", color: "#666" }}
+              >
+                <i className="fa-solid fa-right-from-bracket" />
+                Logout
+              </button>
+            </div>
           </aside>
         </div>
       )}

@@ -15,3 +15,9 @@ DIRECT_URL="postgresql://user:password@host:5432/postgres"
 #
 # After first deploy, run: npm run db:seed
 # Then go to /admin/settings to configure these values.
+
+# ─── Admin Panel Authentication ───────────────────────────────────────────────
+# Password untuk login ke /admin
+ADMIN_PASSWORD="your_secure_admin_password"
+# Secret untuk sign JWT admin — minimal 32 karakter random
+ADMIN_JWT_SECRET="your_random_jwt_secret_minimum_32_characters"

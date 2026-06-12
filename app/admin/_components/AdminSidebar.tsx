@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/admin",              icon: "fa-solid fa-gauge",         label: "Dashboard"    },
@@ -15,6 +15,13 @@ const navItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router   = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/admin/auth", { method: "DELETE" });
+    router.push("/admin/login");
+    router.refresh();
+  }
 
   return (
     <aside className="admin-sidebar">
@@ -40,7 +47,14 @@ export default function AdminSidebar() {
       </nav>
 
       <div className="admin-sidebar-footer">
-        <span className="admin-nav-label">v1.0.0</span>
+        <button
+          onClick={handleLogout}
+          className="admin-nav-item"
+          style={{ width: "100%", background: "none", border: "none", cursor: "pointer", color: "#666" }}
+        >
+          <i className="fa-solid fa-right-from-bracket" />
+          <span className="admin-nav-label">Logout</span>
+        </button>
       </div>
     </aside>
   );

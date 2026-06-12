@@ -429,7 +429,7 @@ if (todayBonus >= 3) return; // max 3 bonus per hari dari satu referrer
 
 ## Checklist Sebelum Launch
 
-- [ ] Fix #1 — Proteksi admin routes dengan middleware
+- [x] Fix #1 — Proteksi admin routes dengan middleware JWT ✅
 - [ ] Fix #2 — Auth `/api/cron`
 - [ ] Fix #3 — Atomic lock di verify-payment
 - [x] Fix #4 — Hapus parameter default di `getSettingNumber` calls ✅
