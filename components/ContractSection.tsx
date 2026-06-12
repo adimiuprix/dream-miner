@@ -11,6 +11,7 @@ interface Contract {
   expiresAt: number;   // ms
   lastSyncAt: number;  // ms
   accumulatedHashes: number;
+  createdAt: string;   // ISO string — used as contract start time for progress
   plan: {
     id: string;
     name: string;
@@ -35,12 +36,13 @@ function formatTimeLeft(msLeft: number): string {
 }
 
 /** Progress: how far through the contract duration (0–100)
- *  Dihitung dari lastSyncAt (waktu contract dibuat/diaktivasi) ke expiresAt.
- *  Tidak bergantung pada plan.duration sehingga akurat untuk semua durasi. */
-function calcProgress(expiresAt: number, lastSyncAt: number): number {
-  const durationMs = expiresAt - lastSyncAt;
+ *  Dihitung dari createdAt (waktu contract dibuat) ke expiresAt.
+ *  Akurat untuk semua durasi dan tidak berubah saat mining di-sync. */
+function calcProgress(expiresAt: number, createdAt: string): number {
+  const startMs    = new Date(createdAt).getTime();
+  const durationMs = expiresAt - startMs;
   if (durationMs <= 0) return 100;
-  const elapsed = Date.now() - lastSyncAt;
+  const elapsed = Date.now() - startMs;
   const pct     = (elapsed / durationMs) * 100;
   return Math.min(100, Math.max(0, pct));
 }
@@ -65,7 +67,7 @@ function ContractCard({ contract }: { contract: Contract }) {
   const totalPower  = contract.power + contract.bonus;
   const hPerDay     = ((totalPower / 100_000) * 86_400);
   const msLeft      = contract.expiresAt - now;
-  const progress    = calcProgress(contract.expiresAt, contract.lastSyncAt);
+  const progress    = calcProgress(contract.expiresAt, contract.createdAt);
   const isExpired   = msLeft <= 0;
 
   // Progress bar color
