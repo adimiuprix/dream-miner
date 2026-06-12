@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { serializeContract } from "@/lib/serialization";
 
+/** Free plan duration is fixed at 12 hours regardless of plan.duration */
+const FREE_PLAN_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await request.json();
@@ -25,7 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const nowMs = Date.now();
+    const nowMs       = Date.now();
+    const expiresAtMs = nowMs + FREE_PLAN_DURATION_MS;
 
     // Cek apakah user sudah punya free contract ACTIVE
     const activeContract = await prisma.contract.findFirst({
@@ -51,10 +55,8 @@ export async function POST(request: NextRequest) {
         status: "EXPIRED",
         plan: { isFree: true },
       },
-      orderBy: { expiresAt: "desc" }, // Ambil yang paling baru
+      orderBy: { expiresAt: "desc" },
     });
-
-    const expiresAtMs = nowMs + freePlan.duration * 24 * 60 * 60 * 1000;
 
     let contract;
 
@@ -63,30 +65,29 @@ export async function POST(request: NextRequest) {
       contract = await prisma.contract.update({
         where: { id: expiredContract.id },
         data: {
-          status: "ACTIVE",
-          expiresAt: BigInt(expiresAtMs),
-          lastSyncAt: BigInt(nowMs),
-          accumulatedHashes: 0, // Reset hashes untuk contract baru
+          status:            "ACTIVE",
+          expiresAt:         BigInt(expiresAtMs),
+          lastSyncAt:        BigInt(nowMs),
+          accumulatedHashes: 0,
         },
       });
-      console.log(`[FreePlan] Reactivated contract ${contract.id} for user ${userId}`);
+      console.log(`[FreePlan] Reactivated contract ${contract.id} for user ${userId} (expires in 12h)`);
     } else {
       // Buat contract baru untuk user yang belum pernah claim
       contract = await prisma.contract.create({
         data: {
           userId,
-          planId: freePlan.id,
-          power: freePlan.power,
-          bonus: freePlan.bonus,
-          status: "ACTIVE",
+          planId:    freePlan.id,
+          power:     freePlan.power,
+          bonus:     freePlan.bonus,
+          status:    "ACTIVE",
           expiresAt: BigInt(expiresAtMs),
           lastSyncAt: BigInt(nowMs),
         },
       });
-      console.log(`[FreePlan] Created new contract ${contract.id} for user ${userId}`);
+      console.log(`[FreePlan] Created contract ${contract.id} for user ${userId} (expires in 12h)`);
     }
 
-    // Serialize BigInt for JSON response
     return NextResponse.json({ success: true, contract: serializeContract(contract) });
   } catch (error) {
     console.error("Free plan activation error:", error);

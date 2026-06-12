@@ -22,8 +22,8 @@ async function main() {
       bonus: 0,
       bonusPercent: 0,
       price: 0,
-      duration: 1,
-      description: "Free starter plan — try mining for 1 day",
+      duration: 1, // not used for expiry — see FREE_PLAN_DURATION_MS in purchase/free/route.ts
+      description: "Free starter plan — try mining for 12 hours",
       finalReturn: null,
       badge: "FREE",
       badgeColor: "#22c55e",
@@ -139,9 +139,10 @@ async function main() {
       create: planData,
     });
 
-    const tag = plan.isFree ? "🆓 FREE" : `💰 ${plan.price} TON`;
+    const tag      = plan.isFree ? "🆓 FREE" : `💰 ${plan.price} TON`;
+    const duration = plan.isFree ? "12h" : `${plan.duration}d`;
     console.log(
-      `  ✅ [${tag}] ${plan.name} — ${plan.duration}d — power: ${plan.power.toLocaleString()} + bonus: ${plan.bonus.toLocaleString()}`
+      `  ✅ [${tag}] ${plan.name} — ${duration} — power: ${plan.power.toLocaleString()} + bonus: ${plan.bonus.toLocaleString()}`
     );
   }
 
