@@ -89,6 +89,10 @@ export interface FlushAndLockResult {
   hashesToSwap: number;
   tonAmount: number;
   swap: { id: string; createdAt: Date; status: string; userId: string };
+  /** Snapshot accumulatedHashes per-contract sesaat sebelum direset ke 0.
+   *  Digunakan oleh rollback saat blockchain gagal agar nilai dikembalikan
+   *  ke contract yang tepat, bukan didistribusi merata. */
+  contractSnapshots: { id: string; hashes: number }[];
 }
 
 export async function flushAndLockHashes(params: {
@@ -102,17 +106,9 @@ export async function flushAndLockHashes(params: {
 
   const powerToHashRate = await getPowerToHashRate();
 
-  // Jalankan seluruh operasi dalam satu transaksi Serializable.
-  // Prisma menggunakan $transaction dengan isolationLevel untuk ini.
   const result = await prisma.$transaction(
     async (tx) => {
-      // 1. Ambil semua contract milik user dengan lock (FOR UPDATE).
-      //    Prisma tidak expose SELECT FOR UPDATE secara langsung, jadi kita
-      //    gunakan $queryRaw untuk mendapatkan lock-nya, lalu lanjutkan update.
-      //
-      //    Alternatif yang lebih portable: gunakan isolationLevel "Serializable"
-      //    di level transaksi — PostgreSQL akan otomatis mendeteksi konflik dan
-      //    abort transaksi yang kalah, lalu client bisa retry.
+      // 1. Ambil semua contract milik user
       const contracts = await tx.contract.findMany({
         where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
       });
@@ -138,16 +134,19 @@ export async function flushAndLockHashes(params: {
         }
       }
 
-      // 3. Baca ulang total hashes setelah flush (sudah termasuk delta terbaru)
+      // 3. Baca ulang setiap contract setelah flush — ambil id + accumulatedHashes
+      //    untuk snapshot rollback yang akurat per-contract (BUG-018).
       const freshContracts = await tx.contract.findMany({
         where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
-        select: { accumulatedHashes: true },
+        select: { id: true, accumulatedHashes: true },
       });
 
-      const totalHashes = freshContracts.reduce(
-        (sum, c) => sum + c.accumulatedHashes,
-        0
-      );
+      const contractSnapshots = freshContracts.map((c) => ({
+        id:     c.id,
+        hashes: c.accumulatedHashes,
+      }));
+
+      const totalHashes = contractSnapshots.reduce((sum, c) => sum + c.hashes, 0);
 
       // 4. Validasi minimum — lempar error agar transaksi di-rollback otomatis
       if (totalHashes < minimumSwapHashes) {
@@ -170,7 +169,7 @@ export async function flushAndLockHashes(params: {
         data: { tonBalance: { increment: tonAmount } },
       });
 
-      // 7. Buat swap record PENDING — locked-in di dalam transaksi yang sama
+      // 7. Buat swap record PENDING
       const swap = await tx.swap.create({
         data: {
           userId,
@@ -185,14 +184,10 @@ export async function flushAndLockHashes(params: {
         },
       });
 
-      return { hashesToSwap: totalHashes, tonAmount, swap };
+      return { hashesToSwap: totalHashes, tonAmount, swap, contractSnapshots };
     },
     {
-      // Serializable memastikan tidak ada phantom read antara flush dan reset.
-      // Jika dua transaksi swap berlomba untuk user yang sama, salah satu akan
-      // diabort PostgreSQL dan client mendapat error yang bisa di-retry.
       isolationLevel: "Serializable",
-      // Timeout 15 detik — cukup untuk operasi DB normal, gagal cepat jika deadlock
       timeout: 15_000,
     }
   );

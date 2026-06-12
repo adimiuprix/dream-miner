@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // ke 0, dan buat swap record dalam SATU Serializable DB transaction.
     // Jika concurrent sync atau swap lain berlomba untuk user yang sama,
     // PostgreSQL akan abort salah satunya — tidak ada double-counting.
-    const { hashesToSwap, tonAmount, swap } = await flushAndLockHashes({
+    const { hashesToSwap, tonAmount, swap, contractSnapshots } = await flushAndLockHashes({
       userId,
       minimumSwapHashes,
       hashToTonRate,
@@ -127,15 +127,18 @@ export async function POST(request: NextRequest) {
       console.error("[Swap] On-chain transfer failed:", chainErr);
 
       await prisma.$transaction(async (tx) => {
-        // Kembalikan accumulatedHashes ke contract pertama yang aktif/expired milik user.
-        // Kita simpan nilai per-contract di swap.metadata agar rollback akurat.
-        // Untuk sekarang: kembalikan total ke satu contract dengan increment.
-        // Catatan: ini mendistribusi ke semua contract merata — lihat BUG-018 untuk
-        // perbaikan lebih lanjut dengan menyimpan snapshot per-contract.
-        await tx.contract.updateMany({
-          where: { userId, status: { in: ["ACTIVE", "EXPIRED"] } },
-          data: { accumulatedHashes: { increment: hashesToSwap } },
-        });
+        // Kembalikan accumulatedHashes ke nilai semula per-contract menggunakan
+        // snapshot yang direkam sebelum reset (BUG-018 fix).
+        // Ini memastikan tiap contract mendapat kembali nilai yang tepat —
+        // bukan total swap didistribusi merata ke semua contract.
+        await Promise.all(
+          contractSnapshots.map((s) =>
+            tx.contract.update({
+              where: { id: s.id },
+              data:  { accumulatedHashes: s.hashes },
+            })
+          )
+        );
 
         await tx.user.update({
           where: { id: userId },

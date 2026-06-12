@@ -323,21 +323,13 @@ Ini mungkin disengaja, tapi perlu dikonfirmasi — karena free plan seharusnya m
 
 ---
 
-### BUG-018 — Swap Rollback Tidak Akurat: `increment: hashesToSwap`
+### BUG-018 — ~~Swap Rollback Tidak Akurat: `increment: hashesToSwap`~~ ✅ FIXED
 
-**File:** `app/api/swap/route.ts`  
-**Dampak:** Jika blockchain gagal dan rollback dijalankan, `accumulatedHashes` yang dikembalikan mungkin tidak akurat.
+**Files diperbaiki:** `lib/miningService.ts`, `app/api/swap/route.ts`
 
-**Masalah:**
-```ts
-// Rollback saat blockchain gagal
-await tx.contract.updateMany({
-  where: { userId },
-  data: { accumulatedHashes: { increment: hashesToSwap } },
-});
-```
-
-`hashesToSwap` adalah total hashes dari SEMUA contract, tapi di-distribute balik ke semua contract secara merata via `updateMany`. Seharusnya tiap contract mendapat kembali nilai yang dihapus dari masing-masing, bukan total dibagi ke semua. Ini bisa menyebabkan distribusi hashes yang salah per-contract, meski total akhirnya benar.
+**Fix:**
+1. `flushAndLockHashes` sekarang mengembalikan `contractSnapshots: { id, hashes }[]` — array yang merekam `accumulatedHashes` per-contract tepat sesaat setelah flush dan sebelum reset ke 0.
+2. Rollback di `swap/route.ts` menggunakan snapshot ini untuk me-restore setiap contract ke nilai pastinya via `contract.update({ data: { accumulatedHashes: s.hashes } })`, bukan `updateMany` dengan `increment: total` yang mendistribusi nilai secara merata ke semua contract.
 
 ---
 
