@@ -157,19 +157,14 @@ Tidak ada token session atau verifikasi identitas. `userId` adalah cuid yang bis
 
 ---
 
-### BUG-008 — Verifikasi Pembayaran: Hanya Cek 20 Transaksi Terakhir
+### BUG-008 — ~~Verifikasi Pembayaran: Hanya Cek 20 Transaksi Terakhir~~ ✅ FIXED
 
-**File:** `lib/tonWebVerification.ts`  
-**Dampak:** Pembayaran valid bisa gagal diverifikasi jika ada lebih dari 20 transaksi masuk ke wallet penerima sejak pembayaran dilakukan.
+**Files diperbaiki:** `lib/tonWebVerification.ts`, `app/api/verify-payment/route.ts`
 
-**Masalah:**
-```ts
-const transactions = await tonweb.getTransactions(receiverAddress, 20); // hardcoded 20
-```
-
-Pada platform yang ramai, wallet penerima bisa menerima banyak transaksi dalam waktu singkat. Jika transaksi user tidak ada di 20 teratas, verifikasi selalu gagal meski pembayaran sudah masuk.
-
-**Perbaikan:** Naikkan limit atau implementasikan pagination berdasarkan timestamp.
+**Fix:**
+1. `TX_FETCH_LIMIT` dinaikkan dari `20` ke `100` (limit maksimum TonCenter API v2).
+2. Loop iterasi diubah dari `continue` ke `break` saat menemukan transaksi yang lebih lama dari cutoff — karena TonCenter mengembalikan urutan terbaru duluan, transaksi berikutnya pasti juga lebih lama, sehingga iterasi bisa dihentikan lebih awal (efisien).
+3. Time window di `verify-payment/route.ts` tidak lagi hardcode 300 detik — sekarang dihitung dinamis dari `transaction.createdAt`: minimal 30 menit, maksimal 2 jam. Ini lebih fair untuk user yang mengalami delay antara transfer dan submit verifikasi.
 
 ---
 

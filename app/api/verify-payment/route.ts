@@ -73,13 +73,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify transaction on blockchain
-    console.log(`[VerifyPayment] Verifying transaction ${transactionId}...`);
+    // Time window dihitung dari saat transaksi dibuat di DB, bukan saat
+    // verifikasi dipanggil — lebih fair untuk user yang submit dengan delay.
+    // Minimal 30 menit, maksimal 2 jam (untuk kasus network lambat).
+    const txAgeSeconds = Math.floor((Date.now() - transaction.createdAt.getTime()) / 1000);
+    const timeWindowSeconds = Math.min(
+      Math.max(txAgeSeconds + 5 * 60, 30 * 60), // min 30 menit
+      2 * 60 * 60                                // max 2 jam
+    );
+
+    console.log(`[VerifyPayment] Verifying transaction ${transactionId} (window: ${Math.round(timeWindowSeconds / 60)}m)...`);
 
     const verification = await verifyTransactionByReceiverAddress(
       transaction.toAddress || "",
       transaction.amount,
       transaction.fromAddress || "",
-      300 // 5 minute time window
+      timeWindowSeconds
     );
 
     console.log("[VerifyPayment] Result:", verification);

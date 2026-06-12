@@ -37,6 +37,14 @@ async function createTonWeb(): Promise<InstanceType<typeof TonWeb>> {
   );
 }
 
+/**
+ * Jumlah transaksi yang di-fetch per halaman dari TonCenter.
+ * BUG-008: nilai lama 20 terlalu kecil — pada wallet ramai, transaksi user
+ * bisa tidak ada di 20 terakhir meski pembayaran sudah masuk.
+ * 100 adalah limit maksimum yang didukung TonCenter API v2.
+ */
+const TX_FETCH_LIMIT = 100;
+
 export async function verifyTransactionByReceiverAddress(
   receiverAddress: string,
   expectedAmount: number,
@@ -47,7 +55,7 @@ export async function verifyTransactionByReceiverAddress(
     console.log("[TonWebVerification] Verifying:", { receiver: receiverAddress, expectedAmount, sender: senderAddress });
 
     const tonweb = await createTonWeb();
-    const transactions = await tonweb.getTransactions(receiverAddress, 20);
+    const transactions = await tonweb.getTransactions(receiverAddress, TX_FETCH_LIMIT);
 
     if (!transactions || transactions.length === 0) {
       return {
@@ -57,21 +65,24 @@ export async function verifyTransactionByReceiverAddress(
       };
     }
 
-    const now      = Math.floor(Date.now() / 1000);
-    const cutoff   = now - timeWindowSeconds;
+    const now    = Math.floor(Date.now() / 1000);
+    const cutoff = now - timeWindowSeconds;
 
     for (const tx of transactions) {
       try {
-        if (tx.utime < cutoff) continue;
+        // TonCenter mengembalikan transaksi dari terbaru ke terlama.
+        // Begitu menemukan transaksi yang lebih lama dari cutoff, semua
+        // transaksi berikutnya pasti juga lebih lama — hentikan iterasi.
+        if (tx.utime < cutoff) break;
 
         const inMsg = tx.in_msg;
         if (!inMsg?.source || !inMsg?.value) continue;
 
-        const amount             = parseFloat(inMsg.value) / 1e9;
-        const normalizedSource   = normalizeAddress(inMsg.source);
-        const normalizedSender   = normalizeAddress(senderAddress);
-        const senderMatches      = normalizedSource === normalizedSender;
-        const amountMatches      = Math.abs(amount - expectedAmount) <= 0.001;
+        const amount           = parseFloat(inMsg.value) / 1e9;
+        const normalizedSource = normalizeAddress(inMsg.source);
+        const normalizedSender = normalizeAddress(senderAddress);
+        const senderMatches    = normalizedSource === normalizedSender;
+        const amountMatches    = Math.abs(amount - expectedAmount) <= 0.001;
 
         console.log("[TonWebVerification] Checking tx:", { timestamp: tx.utime, source: normalizedSource, amount, senderMatches, amountMatches });
 
