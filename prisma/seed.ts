@@ -385,7 +385,7 @@ async function main() {
     // ── TELEGRAM ────────────────────────────────────────────────────────────
     {
       key: "telegram_bot_token",
-      value: "",
+      value: "8901944453:AAG3kxWpi6b9-8dJM8KAyUi_NMLQx_TUqrU",
       type: "STRING" as const,
       group: "TELEGRAM" as const,
       label: "Bot Token",
@@ -403,7 +403,7 @@ async function main() {
     },
     {
       key: "bot_username",
-      value: "",
+      value: "dreamminerz_bot",
       type: "STRING" as const,
       group: "TELEGRAM" as const,
       label: "Bot Username",
