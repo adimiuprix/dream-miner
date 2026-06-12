@@ -168,18 +168,14 @@ Tidak ada token session atau verifikasi identitas. `userId` adalah cuid yang bis
 
 ---
 
-### BUG-009 — `txHash` di Swap Bukan Hash Blockchain yang Nyata
+### BUG-009 — ~~`txHash` di Swap Bukan Hash Blockchain yang Nyata~~ ✅ FIXED
 
-**File:** `app/api/swap/route.ts`  
-**Dampak:** Data audit trail swap tidak dapat diverifikasi di blockchain explorer.
+**Files diperbaiki:** `lib/tonTxPoller.ts` (baru), `app/api/swap/route.ts`, `prisma/schema.prisma`
 
-**Masalah:**
-```ts
-// Placeholder, bukan hash asli
-txHash = `seqno:${newSeqno}`;
-```
-
-Record swap di DB menyimpan `seqno:N` bukan transaction hash yang sebenarnya. Ini berarti tidak ada cara untuk melacak transaksi swap di blockchain.
+**Fix:**
+1. File baru `lib/tonTxPoller.ts` — fungsi `pollTxHash()` yang poll blockchain tiap 2 detik (maks 15 attempt = 30 detik) sampai `seqno` wallet naik. Setelah seqno naik (artinya transaksi dikonfirmasi chain), baca transaksi terakhir dari wallet hot dan ambil hash aslinya.
+2. `app/api/swap/route.ts` — placeholder `seqno:N` diganti dengan `await pollTxHash(client, keyPair, seqno)`. Jika timeout, `txHash` bernilai `null` — swap tetap COMPLETED karena TON sudah terkirim.
+3. `prisma/schema.prisma` — field `txHash String?` ditambahkan ke model `Swap`. Schema di-push ke database (`prisma db push`).
 
 ---
 

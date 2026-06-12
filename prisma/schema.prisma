@@ -139,6 +139,9 @@ model Swap {
   hashesBalanceAfter  Float // HASHES balance after swap (should be 0)
   tonBalanceBefore    Float // TON balance before swap
   tonBalanceAfter     Float // TON balance after swap
+
+  // Blockchain audit trail
+  txHash          String?  // Real transaction hash from TON blockchain (hex)
   
   status          SwapStatus @default(COMPLETED)
   

@@ -6,6 +6,7 @@ import { TonClient, WalletContractV4, internal, toNano } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
 import { notifySwapCompleted } from "@/lib/telegramNotification";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
+import { pollTxHash } from "@/lib/tonTxPoller";
 
 /**
  * POST /api/swap
@@ -115,13 +116,14 @@ export async function POST(request: NextRequest) {
         ],
       });
 
-      // Ambil hash dari TX terakhir setelah seqno naik (polling sederhana)
-      const newSeqno = seqno + 1;
-      txHash = `seqno:${newSeqno}`; // placeholder sampai bisa di-resolve via explorer
-
       console.log(
         `[Swap] Sent ${tonAmount.toFixed(9)} TON to ${user.walletAddress} (seqno ${seqno})`
       );
+
+      // Poll blockchain sampai seqno naik lalu baca hash transaksi asli (BUG-009 fix).
+      // Jika timeout (30 detik), txHash = null — swap tetap COMPLETED karena
+      // TON sudah terkirim, tapi txHash di DB tidak terisi.
+      txHash = await pollTxHash(client, keyPair, seqno);
     } catch (chainErr) {
       // Blockchain gagal — kembalikan state DB dan tandai swap FAILED
       console.error("[Swap] On-chain transfer failed:", chainErr);
@@ -160,10 +162,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 5. Tandai swap COMPLETED ──────────────────────────────────────────────
+    // ── 5. Tandai swap COMPLETED + simpan txHash ─────────────────────────────
     const completedSwap = await prisma.swap.update({
       where: { id: swap.id },
-      data: { status: "COMPLETED" },
+      data: {
+        status: "COMPLETED",
+        ...(txHash ? { txHash } : {}),
+      },
     });
 
     console.log(
