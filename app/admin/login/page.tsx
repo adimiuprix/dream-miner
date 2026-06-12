@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AdminLoginPage() {
-  const router      = useRouter();
+// ── Inner component: menggunakan useSearchParams, wajib dibungkus Suspense ───
+function AdminLoginForm() {
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const from        = searchParams.get("from") ?? "/admin";
+  const from         = searchParams.get("from") ?? "/admin";
 
   const [password, setPassword] = useState("");
   const [error, setError]       = useState<string | null>(null);
@@ -39,6 +40,76 @@ export default function AdminLoginPage() {
     }
   }
 
+  return (
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div>
+        <label
+          htmlFor="password"
+          style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#888", marginBottom: 6 }}
+        >
+          PASSWORD
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter admin password"
+          required
+          autoFocus
+          style={{
+            width:        "100%",
+            padding:      "0.625rem 0.875rem",
+            borderRadius: 8,
+            border:       "1px solid rgba(255,255,255,0.1)",
+            background:   "rgba(255,255,255,0.04)",
+            color:        "#fff",
+            fontSize:     "0.875rem",
+            outline:      "none",
+            boxSizing:    "border-box",
+          }}
+        />
+      </div>
+
+      {error && (
+        <p
+          style={{
+            fontSize:     "0.8rem",
+            color:        "#f87171",
+            background:   "rgba(239,68,68,0.08)",
+            border:       "1px solid rgba(239,68,68,0.2)",
+            borderRadius: 8,
+            padding:      "0.5rem 0.75rem",
+            margin:       0,
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading || !password}
+        style={{
+          padding:      "0.65rem",
+          borderRadius: 8,
+          border:       "none",
+          background:   loading ? "rgba(99,102,241,0.4)" : "#6366f1",
+          color:        "#fff",
+          fontWeight:   700,
+          fontSize:     "0.875rem",
+          cursor:       loading ? "not-allowed" : "pointer",
+          transition:   "opacity 0.15s",
+        }}
+      >
+        {loading ? "Signing in..." : "Sign In"}
+      </button>
+    </form>
+  );
+}
+
+// ── Page component: membungkus form dengan Suspense ──────────────────────────
+export default function AdminLoginPage() {
   return (
     <div
       style={{
@@ -83,71 +154,10 @@ export default function AdminLoginPage() {
           <p style={{ fontSize: "0.75rem", color: "#666", marginTop: 4 }}>Admin Panel</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div>
-            <label
-              htmlFor="password"
-              style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: "#888", marginBottom: 6 }}
-            >
-              PASSWORD
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
-              required
-              autoFocus
-              style={{
-                width:        "100%",
-                padding:      "0.625rem 0.875rem",
-                borderRadius: 8,
-                border:       "1px solid rgba(255,255,255,0.1)",
-                background:   "rgba(255,255,255,0.04)",
-                color:        "#fff",
-                fontSize:     "0.875rem",
-                outline:      "none",
-                boxSizing:    "border-box",
-              }}
-            />
-          </div>
-
-          {error && (
-            <p
-              style={{
-                fontSize:     "0.8rem",
-                color:        "#f87171",
-                background:   "rgba(239,68,68,0.08)",
-                border:       "1px solid rgba(239,68,68,0.2)",
-                borderRadius: 8,
-                padding:      "0.5rem 0.75rem",
-                margin:       0,
-              }}
-            >
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !password}
-            style={{
-              padding:      "0.65rem",
-              borderRadius: 8,
-              border:       "none",
-              background:   loading ? "rgba(99,102,241,0.4)" : "#6366f1",
-              color:        "#fff",
-              fontWeight:   700,
-              fontSize:     "0.875rem",
-              cursor:       loading ? "not-allowed" : "pointer",
-              transition:   "opacity 0.15s",
-            }}
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
+        {/* Form dibungkus Suspense — diperlukan karena useSearchParams() */}
+        <Suspense fallback={<div style={{ color: "#666", textAlign: "center", padding: "1rem" }}>Loading...</div>}>
+          <AdminLoginForm />
+        </Suspense>
       </div>
     </div>
   );
