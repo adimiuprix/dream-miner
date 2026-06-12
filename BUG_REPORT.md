@@ -69,50 +69,17 @@ function verifyTelegramInitData(initData: string, botToken: string): boolean {
 
 ---
 
-### BUG-003 — `lazyCron.expireContracts` Kehilangan Hashes Saat Expiry
+### BUG-003 — ~~`lazyCron.expireContracts` Kehilangan Hashes Saat Expiry~~ ✅ FIXED
 
-**File:** `lib/lazyCron.ts` (fungsi `expireContracts`)  
-**Dampak:** Hashes yang belum di-flush bisa hilang saat contract expired, sehingga user kehilangan hasil mining.
+**File:** `lib/lazyCron.ts`  
+**Fix:** Fungsi `expireContracts()` lokal yang salah dihapus dan diganti dengan panggilan ke `markExpiredContracts()` dari `lib/miningService.ts`.
 
-**Masalah:**
-```ts
-// lazyCron.ts — langsung expire tanpa flush hashes dulu
-const result = await prisma.contract.updateMany({
-  where: { status: "ACTIVE", expiresAt: { lt: BigInt(nowMs) } },
-  data: { status: "EXPIRED" },
-});
-```
+`markExpiredContracts()` sudah mengimplementasikan urutan yang benar:
+1. Temukan semua contract ACTIVE yang sudah melewati `expiresAt`
+2. Flush pending hashes ke semua contract tersebut terlebih dahulu (`flushActiveContracts`)
+3. Baru ubah status menjadi `EXPIRED`
 
-Bandingkan dengan implementasi yang benar di `lib/miningService.ts`:
-```ts
-// miningService.ts — BENAR: flush dulu, baru expire
-await Promise.all(uniqueUserIds.map((uid) => flushActiveContracts(uid, nowMs)));
-await prisma.contract.updateMany({ ... data: { status: "EXPIRED" } });
-```
-
-`lazyCron.expireContracts` tidak memanggil `flushActiveContracts` sebelum mengubah status, sehingga semua `pendingHashes` sejak `lastSyncAt` terakhir akan hilang begitu saja.
-
-**Perbaikan:**
-```ts
-async function expireContracts(): Promise<void> {
-  const nowMs = Date.now();
-  const expiring = await prisma.contract.findMany({
-    where: { status: "ACTIVE", expiresAt: { lt: BigInt(nowMs) } },
-    select: { id: true, userId: true },
-  });
-  if (expiring.length === 0) return;
-
-  // Flush dulu
-  const uniqueUserIds = [...new Set(expiring.map((c) => c.userId))];
-  await Promise.all(uniqueUserIds.map((uid) => flushActiveContracts(uid, nowMs)));
-
-  // Baru expire
-  await prisma.contract.updateMany({
-    where: { id: { in: expiring.map((c) => c.id) } },
-    data: { status: "EXPIRED" },
-  });
-}
-```
+Dengan ini tidak ada lagi dua implementasi berbeda — satu sumber kebenaran untuk logika expiry contract.
 
 ---
 

@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { markExpiredContracts } from "@/lib/miningService";
 
 // Cron job configurations
 const CRON_CONFIG = {
@@ -71,34 +72,24 @@ export async function triggerLazyCron(): Promise<void> {
 }
 
 /**
- * Expire contracts that have passed their expiry date
+ * Expire contracts that have passed their expiry date.
+ *
+ * BUG-003 fix: delegasi ke markExpiredContracts() dari miningService yang
+ * melakukan flush pending hashes terlebih dahulu sebelum mengubah status
+ * contract menjadi EXPIRED. Ini memastikan hashes yang belum tersimpan
+ * tidak hilang saat contract kadaluarsa.
  */
 async function expireContracts(): Promise<void> {
   try {
-    const nowMs = Date.now();
+    const affectedUsers = await markExpiredContracts();
 
-    // Find all active contracts that should be expired
-    const result = await prisma.contract.updateMany({
-      where: {
-        status: "ACTIVE",
-        expiresAt: {
-          lt: BigInt(nowMs),
-        },
-      },
-      data: {
-        status: "EXPIRED",
-      },
-    });
-
-    if (result.count === 0) {
+    if (affectedUsers.length === 0) {
       console.log("[LazyCron] No contracts to expire");
-      return;
+    } else {
+      console.log(
+        `[LazyCron] Successfully expired contracts for ${affectedUsers.length} user(s)`
+      );
     }
-
-    console.log(`[LazyCron] Successfully expired ${result.count} contracts`);
-    
-    // Note: User.power field removed - power is calculated dynamically from active contracts
-    // No need to update user power when contracts expire
   } catch (error) {
     console.error("[LazyCron] Error in expireContracts:", error);
   }
