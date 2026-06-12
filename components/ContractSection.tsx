@@ -14,6 +14,7 @@ interface Contract {
   plan: {
     id: string;
     name: string;
+    slug: string;
     duration: number; // days
     isFree: boolean;
   };
@@ -147,6 +148,89 @@ const CARD_HEIGHT_PX = 96;
 // Gap between cards (px) — matches gap-2 = 8px
 const CARD_GAP_PX = 8;
 
+/** Single summary card for all referral bonus contracts */
+function BonusSummaryCard({ bonusContracts }: { bonusContracts: Contract[] }) {
+  const activeBonus = bonusContracts.filter((c) => c.status === "ACTIVE");
+  const totalPower  = activeBonus.reduce((sum, c) => sum + c.power + c.bonus, 0);
+
+  // Nearest expiry among active bonus contracts
+  const nearestExpiry =
+    activeBonus.length > 0
+      ? Math.min(...activeBonus.map((c) => c.expiresAt))
+      : null;
+
+  const msLeft   = nearestExpiry ? nearestExpiry - Date.now() : 0;
+  const hPerDay  = totalPower / 100_000 * 86_400;
+
+  if (activeBonus.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-2xl px-4 py-3.5"
+      style={{
+        background: "#1a1200",
+        border: "1px solid rgba(245,166,35,0.2)",
+      }}
+    >
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div
+          className="flex items-center justify-center rounded-xl flex-shrink-0"
+          style={{
+            width: 40, height: 40,
+            background: "rgba(245,166,35,0.12)",
+            border: "1px solid rgba(245,166,35,0.25)",
+          }}
+        >
+          <i className="fa-solid fa-gift" style={{ color: "#f5a623", fontSize: "16px" }} />
+        </div>
+
+        {/* Center */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold" style={{ color: "#fff" }}>
+              Referral Bonus
+            </p>
+            <span
+              className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(245,166,35,0.15)", color: "#f5a623" }}
+            >
+              {activeBonus.length} active
+            </span>
+          </div>
+          <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: "#8a6a20" }}>
+            <i className="fa-regular fa-clock" style={{ fontSize: "10px" }} />
+            {msLeft > 0 ? `Next expiry in ${formatTimeLeft(msLeft)}` : "Expiring soon"}
+          </p>
+        </div>
+
+        {/* Right: H/day */}
+        <div className="text-right flex-shrink-0">
+          <p className="text-base font-extrabold" style={{ color: "#f5a623" }}>
+            {hPerDay >= 1000
+              ? (hPerDay / 1000).toFixed(1) + "K"
+              : hPerDay.toFixed(0)}
+          </p>
+          <p className="text-xs" style={{ color: "#444" }}>H/day</p>
+        </div>
+      </div>
+
+      {/* Total power row */}
+      <div
+        className="mt-3 flex items-center justify-between rounded-xl px-3 py-2"
+        style={{ background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.1)" }}
+      >
+        <p className="text-xs" style={{ color: "#8a6a20" }}>
+          Total bonus power
+        </p>
+        <p className="text-xs font-bold" style={{ color: "#f5a623" }}>
+          {totalPower.toLocaleString()} POWER
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ContractSection() {
   const { user } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -176,6 +260,14 @@ export default function ContractSection() {
       .finally(() => setLoading(false));
   }, [user?.id]);
 
+  // Separate bonus contracts from regular plan contracts
+  const bonusContracts   = contracts.filter((c) => c.plan.slug === "bonus");
+  const regularContracts = contracts.filter((c) => c.plan.slug !== "bonus");
+  const hasActiveBonus   = bonusContracts.some((c) => c.status === "ACTIVE");
+
+  // Cards to render in the scrollable list = regular contracts only
+  const displayContracts = regularContracts;
+
   // Max height = VISIBLE_CARDS full cards + peek of next card
   const maxHeight =
     VISIBLE_CARDS * CARD_HEIGHT_PX +
@@ -189,7 +281,8 @@ export default function ContractSection() {
   };
 
   // Check if fade-bottom should show on initial render
-  const showScrollPanel = !loading && contracts.length > VISIBLE_CARDS;
+  const showScrollPanel = !loading && displayContracts.length > VISIBLE_CARDS;
+  const activeRegularCount = regularContracts.filter((c) => c.status === "ACTIVE").length;
 
   return (
     <div className="px-4 mb-3">
@@ -208,7 +301,7 @@ export default function ContractSection() {
         </p>
         {!loading && contracts.length > 0 && (
           <p style={{ fontSize: "10px", color: "#404040" }}>
-            {contracts.filter((c) => c.status === "ACTIVE").length} active
+            {activeRegularCount} active
           </p>
         )}
       </div>
@@ -232,62 +325,68 @@ export default function ContractSection() {
           <i className="fa-solid fa-box-open" style={{ color: "#333", fontSize: "24px" }} />
           <p className="text-xs" style={{ color: "#444" }}>No contracts yet. Buy a plan to start mining.</p>
         </div>
-      ) : showScrollPanel ? (
-        /* ── Scrollable panel (3+ contracts) ─────────────────────── */
-        <div className="relative">
-          {/* Top fade — appears after scrolling down */}
-          {isScrolled && (
-            <div
-              className="absolute top-0 left-0 right-0 z-10 pointer-events-none rounded-t-2xl"
-              style={{
-                height: 32,
-                background: "linear-gradient(to bottom, #0a0f0d, transparent)",
-              }}
-            />
-          )}
-
-          {/* Scrollable list */}
-          <div
-            onScroll={handleScroll}
-            style={{
-              maxHeight,
-              overflowY: "auto",
-              overscrollBehavior: "contain",
-              // Custom thin scrollbar
-              scrollbarWidth: "thin",
-              scrollbarColor: "rgba(0,212,170,0.2) transparent",
-            }}
-            className="flex flex-col gap-2 pr-0.5"
-          >
-            {contracts.map((c) => (
-              <ContractCard key={c.id} contract={c} />
-            ))}
-          </div>
-
-          {/* Bottom fade — hint that more cards exist below */}
-          <div
-            className="absolute bottom-0 left-0 right-0 pointer-events-none rounded-b-2xl transition-opacity duration-200"
-            style={{
-              height: 48,
-              background: "linear-gradient(to top, #0a0f0d 10%, transparent)",
-              opacity: canScrollMore === false && isScrolled ? 0 : 1,
-            }}
-          >
-            {/* Scroll hint icon */}
-            <div className="flex justify-center pt-3">
-              <i
-                className="fa-solid fa-chevron-down"
-                style={{ color: "rgba(0,212,170,0.4)", fontSize: "10px" }}
-              />
-            </div>
-          </div>
-        </div>
       ) : (
-        /* ── Normal list (1–2 contracts, no scroll needed) ─────── */
         <div className="flex flex-col gap-2">
-          {contracts.map((c) => (
-            <ContractCard key={c.id} contract={c} />
-          ))}
+          {/* Bonus summary — single card for all referral bonuses */}
+          {hasActiveBonus && <BonusSummaryCard bonusContracts={bonusContracts} />}
+
+          {/* Regular plan contracts */}
+          {showScrollPanel ? (
+            /* ── Scrollable panel (3+ contracts) ─────────────────────── */
+            <div className="relative">
+              {/* Top fade — appears after scrolling down */}
+              {isScrolled && (
+                <div
+                  className="absolute top-0 left-0 right-0 z-10 pointer-events-none rounded-t-2xl"
+                  style={{
+                    height: 32,
+                    background: "linear-gradient(to bottom, #0a0f0d, transparent)",
+                  }}
+                />
+              )}
+
+              {/* Scrollable list */}
+              <div
+                onScroll={handleScroll}
+                style={{
+                  maxHeight,
+                  overflowY: "auto",
+                  overscrollBehavior: "contain",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(0,212,170,0.2) transparent",
+                }}
+                className="flex flex-col gap-2 pr-0.5"
+              >
+                {displayContracts.map((c) => (
+                  <ContractCard key={c.id} contract={c} />
+                ))}
+              </div>
+
+              {/* Bottom fade */}
+              <div
+                className="absolute bottom-0 left-0 right-0 pointer-events-none rounded-b-2xl transition-opacity duration-200"
+                style={{
+                  height: 48,
+                  background: "linear-gradient(to top, #0a0f0d 10%, transparent)",
+                  opacity: canScrollMore === false && isScrolled ? 0 : 1,
+                }}
+              >
+                <div className="flex justify-center pt-3">
+                  <i
+                    className="fa-solid fa-chevron-down"
+                    style={{ color: "rgba(0,212,170,0.4)", fontSize: "10px" }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── Normal list (1–2 contracts) ─────────────────────────── */
+            <div className="flex flex-col gap-2">
+              {displayContracts.map((c) => (
+                <ContractCard key={c.id} contract={c} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
