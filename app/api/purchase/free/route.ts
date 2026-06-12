@@ -48,12 +48,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cari contract free yang EXPIRED untuk di-reaktivasi
+    // Cari contract free yang sudah expired — dua kondisi:
+    //   a) status sudah "EXPIRED" di DB (cron sudah jalan), atau
+    //   b) status masih "ACTIVE" tapi expiresAt sudah lewat (cron belum jalan)
+    // Kondisi (b) adalah penyebab bug "You already have an active free plan":
+    // activeContract query tidak match karena expiresAt sudah lewat, tapi
+    // expiredContract query juga tidak match karena status masih "ACTIVE" di DB.
+    // Akibatnya kode masuk ke `else` dan membuat contract baru — lalu klik
+    // berikutnya menemukan dua contract ACTIVE dan memblokir reaktivasi.
     const expiredContract = await prisma.contract.findFirst({
       where: {
         userId,
-        status: "EXPIRED",
         plan: { isFree: true },
+        OR: [
+          { status: "EXPIRED" },
+          { status: "ACTIVE", expiresAt: { lte: BigInt(nowMs) } },
+        ],
       },
       orderBy: { expiresAt: "desc" },
     });
@@ -61,7 +71,8 @@ export async function POST(request: NextRequest) {
     let contract;
 
     if (expiredContract) {
-      // Reaktivasi contract yang expired
+      // Reaktivasi contract — baik yang sudah berstatus EXPIRED di DB,
+      // maupun yang masih ACTIVE tapi sudah melewati expiresAt.
       contract = await prisma.contract.update({
         where: { id: expiredContract.id },
         data: {

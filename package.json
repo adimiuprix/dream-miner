@@ -7,7 +7,7 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:reset": "npx prisma migrate reset --skip-seed && npx prisma db push && tsx prisma/seed.ts",
+    "db:reset": "npx prisma migrate reset --force && npx prisma db push && tsx prisma/seed.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
