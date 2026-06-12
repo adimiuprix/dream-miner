@@ -34,12 +34,14 @@ function formatTimeLeft(msLeft: number): string {
   return `${secs}s`;
 }
 
-/** Progress: how far through the contract duration (0–100) */
-function calcProgress(expiresAt: number, durationDays: number): number {
-  const durationMs  = durationDays * 24 * 60 * 60 * 1000;
-  const startMs     = expiresAt - durationMs;
-  const elapsed     = Date.now() - startMs;
-  const pct         = (elapsed / durationMs) * 100;
+/** Progress: how far through the contract duration (0–100)
+ *  Dihitung dari lastSyncAt (waktu contract dibuat/diaktivasi) ke expiresAt.
+ *  Tidak bergantung pada plan.duration sehingga akurat untuk semua durasi. */
+function calcProgress(expiresAt: number, lastSyncAt: number): number {
+  const durationMs = expiresAt - lastSyncAt;
+  if (durationMs <= 0) return 100;
+  const elapsed = Date.now() - lastSyncAt;
+  const pct     = (elapsed / durationMs) * 100;
   return Math.min(100, Math.max(0, pct));
 }
 
@@ -63,7 +65,7 @@ function ContractCard({ contract }: { contract: Contract }) {
   const totalPower  = contract.power + contract.bonus;
   const hPerDay     = ((totalPower / 100_000) * 86_400);
   const msLeft      = contract.expiresAt - now;
-  const progress    = calcProgress(contract.expiresAt, contract.plan.duration);
+  const progress    = calcProgress(contract.expiresAt, contract.lastSyncAt);
   const isExpired   = msLeft <= 0;
 
   // Progress bar color
