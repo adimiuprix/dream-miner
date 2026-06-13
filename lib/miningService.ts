@@ -34,6 +34,8 @@ export interface MiningStats {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper: flush semua contract aktif milik userId
+// BUG-015: Gunakan Prisma transaction agar jika salah satu update gagal,
+//          semua update di-rollback — tidak ada gap/inconsistency hashes.
 // ─────────────────────────────────────────────────────────────────────────────
 async function flushActiveContracts(userId: string, nowMs: number): Promise<void> {
   const [contracts, powerToHashRate] = await Promise.all([
@@ -45,8 +47,8 @@ async function flushActiveContracts(userId: string, nowMs: number): Promise<void
 
   if (contracts.length === 0) return;
 
-  // Hitung delta per contract dan update secara paralel
-  await Promise.all(
+  // Hitung delta per contract dan update dalam satu transaksi atomik
+  await prisma.$transaction(
     contracts.map((c) => {
       const elapsedSeconds = Math.max(0, (nowMs - Number(c.lastSyncAt)) / 1000);
       const powerPerSecond = (c.power + c.bonus) / powerToHashRate;

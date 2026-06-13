@@ -29,6 +29,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Tolak free plan lewat flow ini — gunakan /api/purchase/free (BUG-022)
+    if (plan.isFree) {
+      return NextResponse.json(
+        { error: "Free plan cannot be purchased via this endpoint. Use /api/purchase/free instead." },
+        { status: 400 }
+      );
+    }
+
     // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },

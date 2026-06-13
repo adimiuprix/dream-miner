@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useCallback,
+  useRef,
   useState,
   ReactNode,
 } from "react";
@@ -35,10 +36,16 @@ export function MiningProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [stats, setStats] = useState<MiningStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // BUG-014: Guard agar request sync tidak tumpang tindih
+  const isSyncingRef = useRef(false);
 
   /** Sync ke DB (POST) — flush accumulatedHashes lalu baca stats terbaru */
   const refresh = useCallback(async () => {
     if (!user?.id) return;
+    // Skip jika request sebelumnya belum selesai
+    if (isSyncingRef.current) return;
+
+    isSyncingRef.current = true;
     try {
       const res = await fetch("/api/mining/sync", {
         method: "POST",
@@ -50,6 +57,7 @@ export function MiningProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("[MiningProvider] refresh error:", err);
     } finally {
+      isSyncingRef.current = false;
       setIsLoading(false);
     }
   }, [user?.id]);

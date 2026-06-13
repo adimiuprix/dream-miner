@@ -62,23 +62,32 @@ export async function POST(
 
     // ── Task-specific validation ───────────────────────────────────────────
     if (task.type === "REFERRAL") {
-      // Validate based on task id
-      const referralCount = await prisma.user.count({
-        where: { referredById: userId },
-      });
+      // BUG-012: Baca requiredReferrals dari metadata task, bukan hardcode ID.
+      // Ini memungkinkan admin menambah task referral baru tanpa perlu update kode.
+      let requiredReferrals: number | null = null;
 
-      const required: Record<string, number> = {
-        "task-invite-1":  1,
-        "task-invite-5":  5,
-        "task-invite-10": 10,
-      };
+      if (task.metadata) {
+        try {
+          const meta = JSON.parse(task.metadata) as { requiredReferrals?: number };
+          if (typeof meta.requiredReferrals === "number") {
+            requiredReferrals = meta.requiredReferrals;
+          }
+        } catch {
+          console.warn(`[Tasks] Failed to parse metadata for task ${taskId}`);
+        }
+      }
 
-      const req = required[taskId];
-      if (req !== undefined && referralCount < req) {
-        return NextResponse.json(
-          { error: `You need ${req} referrals to complete this task. You have ${referralCount}.` },
-          { status: 400 }
-        );
+      if (requiredReferrals !== null) {
+        const referralCount = await prisma.user.count({
+          where: { referredById: userId },
+        });
+
+        if (referralCount < requiredReferrals) {
+          return NextResponse.json(
+            { error: `You need ${requiredReferrals} referrals to complete this task. You have ${referralCount}.` },
+            { status: 400 }
+          );
+        }
       }
     }
 

@@ -36,9 +36,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Proteksi endpoint cron — hanya admin yang boleh trigger (BUG-004)
+  if (pathname.startsWith("/api/cron")) {
+    const payload = await verifyAdminToken(request);
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/api/cron/:path*"],
 };

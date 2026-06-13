@@ -39,7 +39,7 @@ const AuthContext = createContext<IAuthContext>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: tgUser, startParam } = useTelegram();
+  const { user: tgUser, startParam, initData } = useTelegram();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<IAuthUser | null>(null);
 
@@ -56,10 +56,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // If telegramId is 0 (not in Telegram), check localStorage for dev mode
       if (telegramId === 0) {
-        const devUser = localStorage.getItem("dream_miner_dev_user");
-        if (devUser) {
-          setUser(JSON.parse(devUser));
-          setStatus("authenticated");
+        const raw = localStorage.getItem("dream_miner_dev_user");
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as Partial<IAuthUser>;
+            // BUG-024: Validasi bahwa object tersimpan memiliki fields yang dibutuhkan
+            if (parsed.id && parsed.telegramId && parsed.firstName) {
+              setUser(parsed as IAuthUser);
+              setStatus("authenticated");
+            } else {
+              // Schema berubah — hapus data lama dan minta login ulang
+              localStorage.removeItem("dream_miner_dev_user");
+              setStatus("new_user");
+            }
+          } catch {
+            localStorage.removeItem("dream_miner_dev_user");
+            setStatus("new_user");
+          }
         } else {
           setStatus("new_user");
         }
@@ -71,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            initData,    // BUG-001: kirim initData untuk verifikasi di server
             telegramId,
             firstName,
             username,
@@ -102,7 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     authenticate();
-  }, [tgUser]);
+  // BUG-013: Gunakan tgUser?.id (primitive) bukan tgUser (object) sebagai
+  // dependency agar tidak memicu re-auth setiap kali referensi object berubah.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tgUser?.id]);
 
   const completeOnboarding = () => {
     if (!tgUser?.id && user) {

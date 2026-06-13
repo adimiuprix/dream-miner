@@ -16,12 +16,13 @@ export interface LeaderboardEntry {
  */
 export async function GET() {
   try {
-    // Fetch all users that have at least one ACTIVE contract,
-    // including their active contracts to calculate total power.
+    // Fetch all users that have at least one ACTIVE contract that hasn't expired yet,
+    // including their active non-expired contracts to calculate total power.
+    const nowMs = BigInt(Date.now());
     const users = await prisma.user.findMany({
       where: {
         contracts: {
-          some: { status: "ACTIVE" },
+          some: { status: "ACTIVE", expiresAt: { gt: nowMs } },
         },
       },
       select: {
@@ -30,7 +31,8 @@ export async function GET() {
         lastName: true,
         username: true,
         contracts: {
-          where: { status: "ACTIVE" },
+          // BUG-010: filter expiresAt agar contract yang sudah lewat tidak ikut terhitung
+          where: { status: "ACTIVE", expiresAt: { gt: nowMs } },
           select: {
             power: true,
             bonus: true,

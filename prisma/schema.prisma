@@ -167,6 +167,11 @@ model Task {
   isRepeatable  Boolean  @default(false)
   repeatCooldownHours Int @default(24)        // Hours before task can be done again
 
+  // Optional validation config stored as JSON string.
+  // REFERRAL tasks: { "requiredReferrals": 5 }
+  // PURCHASE tasks: leave null (validated by type/id)
+  metadata    String?                         // BUG-012: structured validation config
+
   completions UserTask[]
 
   createdAt   DateTime   @default(now())

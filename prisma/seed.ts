@@ -203,6 +203,7 @@ async function main() {
       isRepeatable: false,
       repeatCooldownHours: 0,
       order: 10,
+      metadata: JSON.stringify({ requiredReferrals: 1 }),
     },
     {
       id: "task-invite-5",
@@ -215,6 +216,7 @@ async function main() {
       isRepeatable: false,
       repeatCooldownHours: 0,
       order: 11,
+      metadata: JSON.stringify({ requiredReferrals: 5 }),
     },
     {
       id: "task-invite-10",
@@ -227,6 +229,7 @@ async function main() {
       isRepeatable: false,
       repeatCooldownHours: 0,
       order: 12,
+      metadata: JSON.stringify({ requiredReferrals: 10 }),
     },
 
     // ── Daily ─────────────────────────────────────────────────────────────────

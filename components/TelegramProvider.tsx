@@ -15,6 +15,7 @@ export interface ITelegramContext {
   webApp: typeof WebApp | null;
   user: ITelegramUser | null;
   startParam: string | null;
+  initData: string | null;
   isReady: boolean;
 }
 
@@ -22,6 +23,7 @@ export const TelegramContext = createContext<ITelegramContext>({
   webApp: null,
   user: null,
   startParam: null,
+  initData: null,
   isReady: false,
 });
 
@@ -44,7 +46,32 @@ export const TelegramProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  if (!isReady) return null;
+  if (!isReady) {
+    // BUG-020: Tampilkan loading skeleton daripada layar kosong saat WebApp belum ready
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100dvh",
+          background: "var(--background, #0a0a0a)",
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            border: "3px solid rgba(255,255,255,0.1)",
+            borderTopColor: "var(--dm-green, #00d4aa)",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <TelegramContext.Provider
@@ -52,6 +79,7 @@ export const TelegramProvider = ({ children }: { children: ReactNode }) => {
         webApp,
         user: webApp ? (webApp.initDataUnsafe.user as ITelegramUser) : null,
         startParam: webApp?.initDataUnsafe?.start_param ?? null,
+        initData: webApp?.initData ?? null,
         isReady,
       }}
     >

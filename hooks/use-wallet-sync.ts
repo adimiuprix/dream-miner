@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useTonWallet, useTonAddress } from "@tonconnect/ui-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useTelegram } from "@/components/TelegramProvider";
 import { Address } from "@ton/core";
 
 /**
@@ -16,6 +17,9 @@ import { Address } from "@ton/core";
  *
  * Address selalu dinormalize ke format user-friendly non-bounceable (EQ...)
  * agar konsisten antara DB, swap, dan tampilan UI.
+ *
+ * BUG-007: initData dikirim ke server agar server bisa verifikasi bahwa
+ *          caller adalah pemilik akun yang sah.
  */
 
 /**
@@ -34,6 +38,7 @@ export function useWalletSync() {
   const wallet     = useTonWallet();
   const rawAddress = useTonAddress(false); // non-bounceable dari TonConnect
   const { user, updateWalletAddress } = useAuth();
+  const { initData } = useTelegram();
 
   // Simpan address sebelumnya agar tidak kirim request duplikat
   const prevAddressRef = useRef<string | null | undefined>(undefined);
@@ -67,7 +72,8 @@ export function useWalletSync() {
         const res = await fetch("/api/user/wallet", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id, walletAddress: currentAddress }),
+          // BUG-007: sertakan initData agar server dapat verifikasi identitas
+          body: JSON.stringify({ userId: user.id, walletAddress: currentAddress, initData }),
         });
 
         if (!res.ok) {
@@ -87,5 +93,5 @@ export function useWalletSync() {
     };
 
     sync();
-  }, [wallet, rawAddress, user?.id, user?.walletAddress]);
+  }, [wallet, rawAddress, user?.id, user?.walletAddress, initData]);
 }

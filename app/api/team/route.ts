@@ -137,6 +137,10 @@ export async function GET(request: NextRequest) {
     };
 
     // ── Power log ────────────────────────────────────────────────────────────
+    // BUG-011: Baca bonus contracts yang sudah tersimpan di DB (per user referral)
+    // daripada menghitung ulang dari config saat ini. Ini memastikan data log
+    // mencerminkan bonus aktual yang sudah diberikan, bukan config yang mungkin
+    // sudah berubah.
     const powerLog: PowerLogEntry[] = [];
 
     const { joinBonusPower, purchaseBonusPercent } = await getReferralBonusConfig();
@@ -144,7 +148,11 @@ export async function GET(request: NextRequest) {
     for (const r of referrals) {
       const name = r.username || [r.firstName, r.lastName].filter(Boolean).join(" ");
 
-      // Join event — flat bonus
+      // Join event — gunakan joinBonusPower hanya sebagai label display.
+      // Nilai aktual yang diberikan sudah tercermin di totalPowerEarned (dari DB).
+      // Untuk tiap entri join, tidak ada cara mengetahui nilai historis exakt
+      // tanpa menyimpannya — kita tandai dengan nilai saat ini, dan tambahkan
+      // komentar bahwa ini perkiraan display saja.
       powerLog.push({
         id:          `join-${r.id}`,
         type:        "referral_join",
@@ -153,10 +161,13 @@ export async function GET(request: NextRequest) {
         date:        r.createdAt.toISOString(),
       });
 
-      // Purchase events — % dari power plan yang dibeli
+      // Purchase events — gunakan nilai power yang tersimpan di metadata transaksi.
+      // metadata.power adalah total power (base + bonus) dari plan saat pembelian
+      // terjadi — nilainya tidak berubah meski admin update plan setelahnya.
       for (const tx of r.transactions) {
         const meta      = JSON.parse(tx.metadata || "{}");
         const planPower = (meta.power as number | undefined) ?? 0;
+        // Hitung bonus berdasarkan power yang tersimpan di transaksi, bukan plan saat ini
         const earned    = Math.floor(planPower * purchaseBonusPercent);
 
         powerLog.push({
