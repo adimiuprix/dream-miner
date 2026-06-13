@@ -1,19 +1,18 @@
 /**
  * Telegram Notification Helper
- * Credentials sourced from AppSetting (DB).
+ * Bot token dibaca dari env var TELEGRAM_BOT_TOKEN.
+ * Chat ID tetap dari AppSetting (bukan rahasia).
  * Fire-and-forget — error tidak menghentikan flow utama.
  */
 
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
 async function sendTelegramMessage(text: string): Promise<void> {
-  const [token, chatId] = await Promise.all([
-    getSetting(SETTING_KEYS.TELEGRAM_BOT_TOKEN),
-    getSetting(SETTING_KEYS.TELEGRAM_NOTIFY_CHAT_ID),
-  ]);
+  const token  = process.env.TELEGRAM_BOT_TOKEN ?? null;
+  const chatId = await getSetting(SETTING_KEYS.TELEGRAM_NOTIFY_CHAT_ID).catch(() => null);
 
   if (!token || !chatId) {
-    console.warn("[TelegramNotification] Bot token or chat ID not configured in AppSetting");
+    console.warn("[TelegramNotification] TELEGRAM_BOT_TOKEN env or chat ID not configured");
     return;
   }
 

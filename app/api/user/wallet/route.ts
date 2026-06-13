@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { Address } from "@ton/core";
 import { createHmac } from "crypto";
-import { getSetting, SETTING_KEYS } from "@/lib/settings";
 
 /**
  * Normalize semua format TON address ke user-friendly non-bounceable (EQ...).
@@ -87,15 +86,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Verifikasi identitas caller (BUG-007) ─────────────────────────────────
-    let botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
-    if (!botToken) {
-      try {
-        botToken = await getSetting(SETTING_KEYS.TELEGRAM_BOT_TOKEN);
-      } catch {
-        botToken = null;
-      }
-    }
-    const isDevMode = !botToken || botToken === "dev";
+    const botToken   = process.env.TELEGRAM_BOT_TOKEN ?? null;
+    const isDevMode  = !botToken || botToken === "dev";
 
     if (!isDevMode) {
       if (!initData) {

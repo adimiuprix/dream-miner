@@ -25,7 +25,6 @@ export const SETTING_KEYS = {
   TON_API_KEY:             "ton_api_key",
 
   // TELEGRAM
-  TELEGRAM_BOT_TOKEN:      "telegram_bot_token",
   TELEGRAM_NOTIFY_CHAT_ID: "telegram_notify_chat_id",
   BOT_USERNAME:            "bot_username",
 } as const;

@@ -22,7 +22,6 @@ ADMIN_PASSWORD="your_secure_admin_password"
 ADMIN_JWT_SECRET="your_random_jwt_secret_minimum_32_characters"
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
-# Bot token untuk verifikasi initData dari Telegram Web App (BUG-001 fix).
-# Bisa juga diisi via /admin/settings → telegram_bot_token.
+# Bot token dari @BotFather — untuk verifikasi initData dan pengiriman notifikasi.
 # Set ke "dev" untuk bypass verifikasi di local development.
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token"

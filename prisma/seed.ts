@@ -387,15 +387,6 @@ async function main() {
 
     // ── TELEGRAM ────────────────────────────────────────────────────────────
     {
-      key: "telegram_bot_token",
-      value: "8901944453:AAG3kxWpi6b9-8dJM8KAyUi_NMLQx_TUqrU",
-      type: "STRING" as const,
-      group: "TELEGRAM" as const,
-      label: "Bot Token",
-      description: "Telegram bot token from @BotFather — used to send notifications",
-      isSecret: true,
-    },
-    {
       key: "telegram_notify_chat_id",
       value: "",
       type: "STRING" as const,
