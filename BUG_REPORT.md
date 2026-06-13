@@ -1,47 +1,34 @@
 # Bug Report — Dream Miner
 
 > Dibuat: 12 Juni 2026  
+> Diperbarui: 13 Juni 2026  
 > Cakupan: Seluruh codebase (`app/`, `components/`, `lib/`, `prisma/`)
 
 ---
 
 ## Ringkasan
 
-| Tingkat | Jumlah |
-|---|---|
-| 🔴 Kritis | 5 |
-| 🟠 Tinggi | 6 |
-| 🟡 Sedang | 8 |
-| 🔵 Rendah / Kode | 5 |
-| **Total** | **24** |
+| Tingkat | Jumlah | Sudah Fix |
+|---|---|---|
+| 🔴 Kritis | 5 | 5 ✅ |
+| 🟠 Tinggi | 6 | 6 ✅ |
+| 🟡 Sedang | 8 | 6 ✅ |
+| 🔵 Rendah / Kode | 5 | 5 ✅ |
+| **Total** | **24** | **22 ✅** |
+
+> **2 bug belum diperbaiki:** BUG-016 (perlu keputusan product), BUG-017 (perlu perubahan arsitektur deployment).
 
 ---
 
 ## 🔴 BUG KRITIS
 
-### BUG-001 — Tidak Ada Validasi Telegram `initData` di API Auth
+### BUG-001 — ~~Tidak Ada Validasi Telegram `initData` di API Auth~~ ✅ FIXED
 
-**File:** `app/api/auth/telegram/route.ts`  
-**Dampak:** Siapapun bisa membuat atau mengambil akun user lain hanya dengan mengetahui `telegramId` mereka.
+**File:** `app/api/auth/telegram/route.ts`
 
-**Masalah:**
+**Fix:** Ditambahkan fungsi `verifyTelegramInitData()` menggunakan HMAC-SHA256 sesuai spesifikasi resmi Telegram. Server sekarang wajib menerima `initData` dari client dan memverifikasinya dengan `BOT_TOKEN`. Request tanpa `initData` valid ditolak dengan HTTP 401. Dev mode aktif jika `BOT_TOKEN=dev` di `.env`.
+
 ```ts
-// route.ts — menerima telegramId tanpa verifikasi sama sekali
-const { telegramId, username, firstName, ... } = body;
-const existingUser = await prisma.user.findUnique({
-  where: { telegramId: BigInt(telegramId) },
-});
-```
-
-Telegram Web App seharusnya mengirimkan `initData` (signed string dari Telegram) yang diverifikasi menggunakan HMAC-SHA256 dengan `BOT_TOKEN`. Project ini menerima `telegramId` mentah tanpa verifikasi apapun.
-
-**Risiko:** Penyerang dapat POST ke `/api/auth/telegram` dengan `telegramId` milik user lain untuk mengambil akses akun, mengubah data, dan melakukan swap TON ke wallet mereka sendiri.
-
-**Perbaikan:**
-```ts
-// Verifikasi initData dari Telegram
-import { createHmac } from "crypto";
-
 function verifyTelegramInitData(initData: string, botToken: string): boolean {
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
@@ -56,74 +43,66 @@ function verifyTelegramInitData(initData: string, botToken: string): boolean {
 }
 ```
 
+Client (`components/AuthProvider.tsx`) sekarang mengirim `initData` dari `TelegramProvider` di setiap request auth.
+
+> ⚠️ Pastikan `BOT_TOKEN` di production **bukan** `"dev"`.
+
 ---
 
 ### BUG-002 — ~~Race Condition pada Swap: Double-Counting Hashes~~ ✅ FIXED
 
-**File:** `app/api/swap/route.ts`, `lib/miningService.ts`  
-**Fix commit:** Fungsi `flushAndLockHashes` ditambahkan ke `miningService.ts`
+**File:** `app/api/swap/route.ts`, `lib/miningService.ts`
 
-**Solusi:** Seluruh operasi swap (flush pending hashes → baca total → validasi minimum → reset ke 0 → buat swap record) sekarang dijalankan dalam **satu Serializable DB transaction** di `flushAndLockHashes`. PostgreSQL mendeteksi konflik antar transaksi concurrent pada baris yang sama dan mengabort salah satunya, sehingga:
-- Dua swap concurrent untuk user yang sama tidak bisa keduanya lolos — yang kalah mendapat error serialization dan tidak memproses hashes yang sama.
-- Mining sync concurrent (polling 10 detik) yang mencoba mengupdate `accumulatedHashes` di saat bersamaan akan block sampai swap selesai, sehingga tidak ada hashes yang hilang.
+**Fix:** Seluruh operasi swap (flush pending hashes → baca total → validasi minimum → reset ke 0 → buat swap record) dijalankan dalam **satu Serializable DB transaction** di `flushAndLockHashes`. PostgreSQL mendeteksi konflik antar transaksi concurrent pada baris yang sama dan mengabort salah satunya, sehingga:
+- Dua swap concurrent untuk user yang sama tidak bisa keduanya lolos.
+- Mining sync concurrent tidak akan menyebabkan hashes hilang.
 
 ---
 
 ### BUG-003 — ~~`lazyCron.expireContracts` Kehilangan Hashes Saat Expiry~~ ✅ FIXED
 
-**File:** `lib/lazyCron.ts`  
-**Fix:** Fungsi `expireContracts()` lokal yang salah dihapus dan diganti dengan panggilan ke `markExpiredContracts()` dari `lib/miningService.ts`.
+**File:** `lib/lazyCron.ts`
 
-`markExpiredContracts()` sudah mengimplementasikan urutan yang benar:
-1. Temukan semua contract ACTIVE yang sudah melewati `expiresAt`
-2. Flush pending hashes ke semua contract tersebut terlebih dahulu (`flushActiveContracts`)
-3. Baru ubah status menjadi `EXPIRED`
-
-Dengan ini tidak ada lagi dua implementasi berbeda — satu sumber kebenaran untuk logika expiry contract.
+**Fix:** Fungsi `expireContracts()` lokal yang salah dihapus dan diganti dengan panggilan ke `markExpiredContracts()` dari `lib/miningService.ts`, yang sudah mengimplementasikan urutan yang benar: flush hashes terlebih dahulu, baru ubah status ke `EXPIRED`.
 
 ---
 
-### BUG-004 — Endpoint `/api/cron` Tidak Terproteksi
+### BUG-004 — ~~Endpoint `/api/cron` Tidak Terproteksi~~ ✅ FIXED
 
-**File:** `app/api/cron/route.ts`, `middleware.ts`  
-**Dampak:** Siapapun bisa memicu cron job secara manual dari internet tanpa autentikasi.
+**File:** `middleware.ts`
 
-**Masalah:** Middleware hanya memproteksi `/api/admin/*` dan `/admin/*`. Endpoint `/api/cron` (POST dan GET) tidak memiliki proteksi apapun. Endpoint POST ini dapat memicu `forceRunCronJobs()` atau `runJobManually()` yang mempengaruhi data DB.
+**Fix:** Ditambahkan `/api/cron/:path*` ke matcher middleware. Setiap request ke `/api/cron` sekarang diperiksa oleh `verifyAdminToken` — tanpa token admin yang valid, server mengembalikan HTTP 401.
 
-**Perbaikan:** Tambahkan `/api/cron` ke dalam perlindungan admin di middleware, atau tambahkan guard autentikasi di dalam handler:
 ```ts
-// Di middleware.ts
-if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/cron")) {
+// middleware.ts
+if (pathname.startsWith("/api/cron")) {
   const payload = await verifyAdminToken(request);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
+
+export const config = {
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/api/cron/:path*"],
+};
 ```
 
 ---
 
-### BUG-005 — Admin Password Dibandingkan dengan Plain String (Timing Attack)
+### BUG-005 — ~~Admin Password Dibandingkan dengan Plain String (Timing Attack)~~ ✅ FIXED
 
-**File:** `app/api/admin/auth/route.ts`  
-**Dampak:** Rentan terhadap timing attack; password admin bisa di-brute force dengan menganalisis waktu respons.
+**File:** `app/api/admin/auth/route.ts`
 
-**Masalah:**
+**Fix:** Ganti `===` dengan `timingSafeEqual` dari Node.js `crypto`. Password di-pad ke panjang yang sama sebelum dibandingkan agar comparison benar-benar constant-time dan tidak bocorkan informasi panjang password.
+
 ```ts
-if (password !== adminPassword) {  // plain string comparison
-  return NextResponse.json({ error: "Invalid password" }, { status: 401 });
-}
-```
+const pwBuf     = Buffer.from(password);
+const adminBuf  = Buffer.from(adminPassword);
+const maxLen    = Math.max(pwBuf.length, adminBuf.length);
+const pwPadded  = Buffer.concat([pwBuf,    Buffer.alloc(maxLen - pwBuf.length)]);
+const admPadded = Buffer.concat([adminBuf, Buffer.alloc(maxLen - adminBuf.length)]);
 
-JavaScript `===` operator tidak constant-time. Penyerang bisa mengukur waktu respons untuk menebak password karakter demi karakter.
-
-**Perbaikan:** Gunakan `timingSafeEqual` dari Node.js `crypto`:
-```ts
-import { timingSafeEqual } from "crypto";
-
-const passwordMatch = timingSafeEqual(
-  Buffer.from(password),
-  Buffer.from(adminPassword)
-);
-if (!passwordMatch) { ... }
+const contentMatch = timingSafeEqual(pwPadded, admPadded);
+const lengthMatch  = pwBuf.length === adminBuf.length;
+if (!contentMatch || !lengthMatch) { /* reject */ }
 ```
 
 ---
@@ -132,28 +111,29 @@ if (!passwordMatch) { ... }
 
 ### BUG-006 — ~~`ignoreBuildErrors: true` Menyembunyikan TypeScript Errors~~ ✅ FIXED
 
-**Files diperbaiki:**
-- `next.config.ts` — hapus `typescript.ignoreBuildErrors`
-- `tsconfig.json` — exclude folder `types/` (file generated Next.js, tidak kompatibel dengan `tsc --noEmit`)
-- `app/(app)/more/settings/page.tsx` — bug nyata yang terungkap: `"mainnet" ? "Mainnet" : "Testnet"` selalu truthy karena string literal tidak pernah falsy. Diganti dengan nilai literal `"Mainnet"` langsung.
+**Files diperbaiki:** `next.config.ts`, `tsconfig.json`, `app/(app)/more/settings/page.tsx`
 
-`tsc --noEmit` sekarang berjalan tanpa error.
+**Fix:**
+- `next.config.ts` — hapus `typescript.ignoreBuildErrors`
+- `tsconfig.json` — exclude folder `types/` (file generated Next.js)
+- `app/(app)/more/settings/page.tsx` — `"mainnet" ? "Mainnet" : "Testnet"` (selalu truthy) diganti dengan nilai literal `"Mainnet"`
+
+`tsc --noEmit` sekarang berjalan bersih tanpa error.
 
 ---
 
-### BUG-007 — `api/user/wallet` Tidak Ada Autentikasi User
+### BUG-007 — ~~`api/user/wallet` Tidak Ada Autentikasi User~~ ✅ FIXED
 
-**File:** `app/api/user/wallet/route.ts`  
-**Dampak:** Siapapun yang mengetahui `userId` lain bisa memutus atau mengganti wallet address user tersebut.
+**File:** `app/api/user/wallet/route.ts`, `hooks/use-wallet-sync.ts`
 
-**Masalah:**
+**Fix:** Server kini memverifikasi `initData` dari Telegram dan memastikan `user.id` di request cocok dengan `user.id` di dalam `initData`. Client (`hooks/use-wallet-sync.ts`) mengirim `initData` bersama setiap request wallet PATCH.
+
 ```ts
-// Hanya cek userId ada di body, tidak ada verifikasi bahwa caller = pemilik akun
-const { userId, walletAddress } = body;
-const user = await prisma.user.findUnique({ where: { id: userId } });
+// Verifikasi bahwa caller adalah pemilik akun
+if (!verifyInitDataForUser(initData, botToken, user.telegramId)) {
+  return NextResponse.json({ error: "Unauthorized: initData mismatch" }, { status: 401 });
+}
 ```
-
-Tidak ada token session atau verifikasi identitas. `userId` adalah cuid yang bisa di-enumerate jika bocor.
 
 ---
 
@@ -163,8 +143,8 @@ Tidak ada token session atau verifikasi identitas. `userId` adalah cuid yang bis
 
 **Fix:**
 1. `TX_FETCH_LIMIT` dinaikkan dari `20` ke `100` (limit maksimum TonCenter API v2).
-2. Loop iterasi diubah dari `continue` ke `break` saat menemukan transaksi yang lebih lama dari cutoff — karena TonCenter mengembalikan urutan terbaru duluan, transaksi berikutnya pasti juga lebih lama, sehingga iterasi bisa dihentikan lebih awal (efisien).
-3. Time window di `verify-payment/route.ts` tidak lagi hardcode 300 detik — sekarang dihitung dinamis dari `transaction.createdAt`: minimal 30 menit, maksimal 2 jam. Ini lebih fair untuk user yang mengalami delay antara transfer dan submit verifikasi.
+2. Loop iterasi menggunakan `break` saat menemukan transaksi lebih lama dari cutoff (efisien karena TonCenter mengembalikan urutan terbaru duluan).
+3. Time window dihitung dinamis dari `transaction.createdAt`: minimal 30 menit, maksimal 2 jam.
 
 ---
 
@@ -173,144 +153,130 @@ Tidak ada token session atau verifikasi identitas. `userId` adalah cuid yang bis
 **Files diperbaiki:** `lib/tonTxPoller.ts` (baru), `app/api/swap/route.ts`, `prisma/schema.prisma`
 
 **Fix:**
-1. File baru `lib/tonTxPoller.ts` — fungsi `pollTxHash()` yang poll blockchain tiap 2 detik (maks 15 attempt = 30 detik) sampai `seqno` wallet naik. Setelah seqno naik (artinya transaksi dikonfirmasi chain), baca transaksi terakhir dari wallet hot dan ambil hash aslinya.
-2. `app/api/swap/route.ts` — placeholder `seqno:N` diganti dengan `await pollTxHash(client, keyPair, seqno)`. Jika timeout, `txHash` bernilai `null` — swap tetap COMPLETED karena TON sudah terkirim.
-3. `prisma/schema.prisma` — field `txHash String?` ditambahkan ke model `Swap`. Schema di-push ke database (`prisma db push`).
+1. `lib/tonTxPoller.ts` — fungsi `pollTxHash()` yang poll blockchain tiap 2 detik (maks 15 attempt = 30 detik) hingga seqno wallet naik, lalu ambil hash asli dari transaksi terakhir.
+2. `app/api/swap/route.ts` — placeholder `seqno:N` diganti dengan `await pollTxHash(...)`. Jika timeout, `txHash` bernilai `null` — swap tetap COMPLETED karena TON sudah terkirim.
+3. `prisma/schema.prisma` — field `txHash String?` ditambahkan ke model `Swap`.
 
 ---
 
-### BUG-010 — Leaderboard Tidak Filter Expired Contracts
+### BUG-010 — ~~Leaderboard Tidak Filter Expired Contracts~~ ✅ FIXED
 
-**File:** `app/api/leaderboard/route.ts`  
-**Dampak:** User dengan contract expired masih tampil di leaderboard dengan power tinggi.
+**File:** `app/api/leaderboard/route.ts`
 
-**Masalah:**
-```ts
-contracts: {
-  where: { status: "ACTIVE" },  // ← hanya filter status, tidak filter expiresAt
-  select: { power: true, bonus: true },
-},
-```
+**Fix:** Tambahkan `expiresAt: { gt: BigInt(Date.now()) }` di filter query contracts. Contract yang sudah melewati expiry tidak lagi ikut dihitung dalam total power user di leaderboard.
 
-Contract bisa berstatus `ACTIVE` namun sudah melewati `expiresAt` (sebelum cron jalan). User tersebut tampil dengan power yang seharusnya sudah tidak valid.
-
-**Perbaikan:**
 ```ts
 contracts: {
   where: {
     status: "ACTIVE",
-    expiresAt: { gt: BigInt(Date.now()) },  // tambahkan ini
+    expiresAt: { gt: BigInt(Date.now()) },  // ← ditambahkan
   },
 }
 ```
 
 ---
 
-### BUG-011 — Team Page `powerLog` Menampilkan Data Fiktif
+### BUG-011 — ~~Team Page `powerLog` Menampilkan Data Fiktif~~ ✅ FIXED
 
-**File:** `app/api/team/route.ts`  
-**Dampak:** Angka "power earned from referrals" di UI tidak mencerminkan data aktual DB.
+**File:** `app/api/team/route.ts`
 
-**Masalah:** `powerLog` di-generate dengan menghitung ulang bonus dari config saat ini:
-```ts
-powerLog.push({
-  powerEarned: joinBonusPower,  // menggunakan config SAAT INI, bukan saat join terjadi
-});
-```
+**Fix:** Purchase entries di `powerLog` sekarang menggunakan `meta.power` yang tersimpan di metadata transaksi saat pembelian terjadi — nilainya tidak terpengaruh jika admin mengubah config plan setelahnya. `stats.totalPowerEarned` (dari bonus contracts di DB) tetap sebagai angka agregat yang akurat.
 
-Jika admin mengubah `join_bonus_power` atau `purchase_bonus_percent`, semua entri powerLog lama akan berubah nilainya, padahal bonus aktual sudah diberikan berdasarkan nilai lama.
-
-`stats.totalPowerEarned` sendiri sudah benar (dari DB), tapi tiap entri log bisa berbeda dengan kenyataan.
+> Catatan: Nilai join bonus per entri masih menggunakan config saat ini karena nilai historis tidak disimpan per-event. Ini adalah limitasi yang bisa diatasi dengan menyimpan nilai bonus saat join di tabel tersendiri jika diperlukan.
 
 ---
 
 ## 🟡 BUG SEDANG
 
-### BUG-012 — Task Completion: Validasi Referral Hardcode Task ID
+### BUG-012 — ~~Task Completion: Validasi Referral Hardcode Task ID~~ ✅ FIXED
 
-**File:** `app/api/tasks/[id]/complete/route.ts`  
-**Dampak:** Jika ID task referral di DB berubah (atau task baru ditambahkan via admin), validasi referral tidak akan berjalan.
+**Files diperbaiki:** `prisma/schema.prisma`, `prisma/seed.ts`, `app/api/tasks/[id]/complete/route.ts`
 
-**Masalah:**
+**Fix:**
+1. Field `metadata String?` ditambahkan ke model `Task` di schema Prisma (`prisma db push` sudah dijalankan).
+2. REFERRAL tasks di seed sekarang menyimpan `{ "requiredReferrals": N }` di field metadata.
+3. Complete route membaca `task.metadata` untuk validasi, bukan hardcoded ID — task referral baru yang dibuat admin pun tervalidasi selama `metadata` diisi.
+
 ```ts
-const required: Record<string, number> = {
-  "task-invite-1":  1,  // hardcoded
-  "task-invite-5":  5,
-  "task-invite-10": 10,
-};
-const req = required[taskId];
-// Jika req === undefined, validasi dilewati — task selesai tanpa syarat
+// Baca requiredReferrals dari metadata, bukan hardcode ID
+const meta = JSON.parse(task.metadata ?? "{}");
+if (typeof meta.requiredReferrals === "number") {
+  const count = await prisma.user.count({ where: { referredById: userId } });
+  if (count < meta.requiredReferrals) { /* reject */ }
+}
 ```
-
-Task ID `task-invite-1` dst. sesuai dengan yang di-seed, tapi jika admin menambah task referral baru via panel, task tersebut tidak akan punya validasi dan bisa diklaim tanpa memenuhi syarat.
 
 ---
 
-### BUG-013 — `AuthProvider` Menggunakan `tgUser` Tanpa Guard di `useEffect`
+### BUG-013 — ~~`AuthProvider` Menggunakan `tgUser` Tanpa Guard di `useEffect`~~ ✅ FIXED
 
-**File:** `components/AuthProvider.tsx`  
-**Dampak:** `authenticate()` dipanggil ulang setiap `tgUser` berubah referensi objek, bukan hanya saat nilai berubah — bisa menyebabkan multiple concurrent auth requests.
+**File:** `components/AuthProvider.tsx`
 
-**Masalah:**
+**Fix:** Dependency `useEffect` diubah dari `[tgUser]` (object reference) ke `[tgUser?.id]` (primitive number). `authenticate()` sekarang hanya dipanggil ulang jika `telegramId` benar-benar berubah nilainya.
+
 ```ts
-useEffect(() => {
-  authenticate();
-}, [tgUser]); // tgUser adalah objek — referensi bisa berubah meski datanya sama
+// Sebelum: }, [tgUser]);   ← re-trigger setiap object reference berubah
+// Sesudah:
+}, [tgUser?.id]);            // ← hanya trigger saat id berubah
 ```
-
-`TelegramProvider` menetapkan `user: webApp.initDataUnsafe.user` di setiap render. Jika parent re-render, object reference berubah dan `authenticate()` dipanggil lagi.
 
 ---
 
-### BUG-014 — `MiningProvider` Sync Tiap 10 Detik Tanpa Debounce/Guard
+### BUG-014 — ~~`MiningProvider` Sync Tiap 10 Detik Tanpa Guard~~ ✅ FIXED
 
-**File:** `components/MiningProvider.tsx`  
-**Dampak:** Jika tab tidak aktif lama lalu aktif kembali, semua sync yang tertunda bisa terkirim sekaligus; juga tidak ada penanganan saat request masih in-flight.
+**File:** `components/MiningProvider.tsx`
 
-**Masalah:**
+**Fix:** Ditambahkan `isSyncingRef` sebagai in-flight guard. Jika request sync sebelumnya belum selesai saat interval berikutnya tiba, interval tersebut di-skip — tidak ada dua request sync yang berjalan bersamaan untuk satu user.
+
 ```ts
-const interval = setInterval(refresh, 10_000);
-```
+const isSyncingRef = useRef(false);
 
-Tidak ada cek apakah request sebelumnya masih berjalan. Jika server lambat dan butuh >10 detik, dua request sync bisa berjalan bersamaan untuk user yang sama, menyebabkan race condition di `flushActiveContracts`.
+const refresh = useCallback(async () => {
+  if (isSyncingRef.current) return;  // ← skip jika masih in-flight
+  isSyncingRef.current = true;
+  try { /* ... */ } finally { isSyncingRef.current = false; }
+}, [user?.id]);
+```
 
 ---
 
-### BUG-015 — `flushActiveContracts` Parallel Writes Tanpa Transaksi DB
+### BUG-015 — ~~`flushActiveContracts` Parallel Writes Tanpa Transaksi DB~~ ✅ FIXED
 
-**File:** `lib/miningService.ts`  
-**Dampak:** Jika salah satu `contract.update` gagal di tengah-tengah, sebagian contract ter-flush dan sebagian tidak — state mining jadi inconsisten.
+**File:** `lib/miningService.ts`
 
-**Masalah:**
+**Fix:** `Promise.all()` diganti dengan `prisma.$transaction([...])`. Semua contract updates dalam satu flush sekarang bersifat atomik — jika salah satu gagal, seluruh batch di-rollback sehingga tidak ada gap/inkonsistensi hashes.
+
 ```ts
-await Promise.all(
-  contracts.map((c) => {
-    return prisma.contract.update({ ... data: { accumulatedHashes: { increment: delta }, lastSyncAt: BigInt(nowMs) } });
-  })
+// Sebelum: await Promise.all(contracts.map(...update...))
+// Sesudah:
+await prisma.$transaction(
+  contracts.map((c) => prisma.contract.update({ where: { id: c.id }, data: { ... } }))
 );
 ```
-
-Jika ada 5 contract dan update ke-3 gagal, contract 1-2 sudah ter-flush (`lastSyncAt` maju) tapi contract 3-5 tidak. Saat sync berikutnya, delta untuk contract 1-2 akan dihitung dari `nowMs` yang baru sehingga ada gap hashes yang hilang.
 
 ---
 
 ### BUG-016 — Free Plan: Tidak Ada Rate Limiting untuk Reaktivasi
 
 **File:** `app/api/purchase/free/route.ts`  
-**Dampak:** Tidak ada batasan berapa kali user boleh reaktivasi free plan.
+**Status:** ⏳ Belum diperbaiki — perlu keputusan product.
 
-**Masalah:** Endpoint ini memang hanya boleh dipanggil jika tidak ada contract ACTIVE, tapi tidak ada cooldown antar reaktivasi. User bisa terus reaktivasi free plan 12 jam setiap kali expired, efektif mendapat free plan tanpa batas.
+**Masalah:** Tidak ada cooldown antar reaktivasi free plan. User bisa reaktivasi setiap 12 jam tanpa batas, efektif menggunakan free plan selamanya tanpa membeli plan berbayar.
 
-Ini mungkin disengaja, tapi perlu dikonfirmasi — karena free plan seharusnya menjadi entry point untuk mendorong pembelian plan berbayar.
+**Opsi perbaikan:**
+- Batasi maksimum N kali reaktivasi seumur hidup per user.
+- Atau terima ini sebagai intended behavior (free plan = akuisisi user).
 
 ---
 
-### BUG-017 — `CronTrigger` adalah Server Component yang Memanggil Fungsi dengan In-Memory State
+### BUG-017 — `CronTrigger` dengan In-Memory State Tidak Kompatibel Multi-Instance
 
-**File:** `components/CronTrigger.tsx`  
-**Dampak:** Di Next.js App Router, Server Components bisa di-render di multiple server instances. State in-memory `cronState` di `lazyCron.ts` tidak ter-share antar instances.
+**File:** `components/CronTrigger.tsx`, `lib/lazyCron.ts`  
+**Status:** ⏳ Belum diperbaiki — perlu perubahan arsitektur.
 
-**Masalah:** `cronState` adalah module-level variable. Di deployment dengan multiple server instances (Vercel, dsb.), tiap instance punya `cronState` sendiri. Cron bisa jalan N kali (N = jumlah instances) bersamaan.
+**Masalah:** `cronState` adalah module-level variable. Di deployment multi-instance (Vercel, dll.), tiap instance punya state sendiri sehingga cron bisa jalan N kali bersamaan.
+
+**Solusi yang disarankan:** Pindahkan state cron ke database (tabel `CronLock`) atau gunakan external scheduler (Vercel Cron Jobs, pg-boss, BullMQ).
 
 ---
 
@@ -318,107 +284,92 @@ Ini mungkin disengaja, tapi perlu dikonfirmasi — karena free plan seharusnya m
 
 **Files diperbaiki:** `lib/miningService.ts`, `app/api/swap/route.ts`
 
-**Fix:**
-1. `flushAndLockHashes` sekarang mengembalikan `contractSnapshots: { id, hashes }[]` — array yang merekam `accumulatedHashes` per-contract tepat sesaat setelah flush dan sebelum reset ke 0.
-2. Rollback di `swap/route.ts` menggunakan snapshot ini untuk me-restore setiap contract ke nilai pastinya via `contract.update({ data: { accumulatedHashes: s.hashes } })`, bukan `updateMany` dengan `increment: total` yang mendistribusi nilai secara merata ke semua contract.
+**Fix:** `flushAndLockHashes` mengembalikan `contractSnapshots: { id, hashes }[]`. Rollback menggunakan snapshot ini untuk me-restore nilai `accumulatedHashes` per-contract secara tepat via `contract.update`, bukan `updateMany` dengan `increment` yang mendistribusi nilai merata.
 
 ---
 
-### BUG-019 — `serializeUser` Kehilangan Type Safety
+### BUG-019 — ~~`serializeUser` Kehilangan Type Safety~~ ✅ FIXED
 
-**File:** `app/api/auth/telegram/route.ts`  
-**Dampak:** Perubahan schema Prisma `User` tidak akan terdeteksi oleh TypeScript karena fungsi menerima `Record<string, unknown>`.
+**File:** `app/api/auth/telegram/route.ts`
 
-**Masalah:**
-```ts
-function serializeUser(user: Record<string, unknown>) {  // type unsafe
-  return { ...user, telegramId: String(user.telegramId) };
-}
-```
-
-Field apapun yang ditambahkan ke model `User` Prisma tidak akan otomatis ikut terserialize/divalidasi.
+**Fix:** Parameter `serializeUser` diubah dari `Record<string, unknown>` ke tipe Prisma `User` yang eksplisit. TypeScript sekarang akan mendeteksi jika ada field model `User` yang tidak ter-handle saat schema Prisma berubah.
 
 ---
 
 ## 🔵 BUG RENDAH / KUALITAS KODE
 
-### BUG-020 — `TelegramProvider` Return `null` saat `!isReady` Memblokir Seluruh Render
+### BUG-020 — ~~`TelegramProvider` Return `null` saat `!isReady` Memblokir Seluruh Render~~ ✅ FIXED
 
-**File:** `components/TelegramProvider.tsx`  
-**Dampak:** UX — layar kosong ditampilkan saat WebApp belum `ready`, termasuk pada koneksi lambat.
+**File:** `components/TelegramProvider.tsx`
+
+**Fix:** `return null` diganti dengan spinner loading yang menampilkan indikator visual saat WebApp Telegram belum `ready`. User tidak lagi melihat layar kosong pada koneksi lambat.
+
+---
+
+### BUG-021 — ~~`admin/plans` Tidak Validasi `slug` Unik saat Create~~ ✅ FIXED
+
+**File:** `app/api/admin/plans/route.ts`
+
+**Fix:** Ditambahkan pengecekan eksplisit sebelum `prisma.plan.create()`. Jika slug sudah ada, server mengembalikan HTTP 409 dengan pesan error yang jelas daripada HTTP 500 generik dari Prisma.
 
 ```ts
-if (!isReady) return null;  // blank screen
-```
-
-Sebaiknya tampilkan loading skeleton agar UX lebih baik.
-
----
-
-### BUG-021 — `admin/plans` Tidak Validasi `slug` Unik saat Create
-
-**File:** `app/api/admin/plans/route.ts`  
-**Dampak:** Error 500 tanpa pesan yang jelas jika admin mencoba membuat plan dengan slug yang sudah ada.
-
-Prisma akan throw `P2002` (unique constraint violation) yang tidak di-handle khusus, sehingga user melihat "Internal server error" generik.
-
----
-
-### BUG-022 — `purchase/route.ts` Tidak Validasi `isFree` Plan
-
-**File:** `app/api/purchase/route.ts`  
-**Dampak:** User bisa membuat transaction PENDING untuk free plan, menciptakan data kotor.
-
-**Masalah:**
-```ts
-const plan = await prisma.plan.findUnique({ where: { id: planId } });
-if (!plan || !plan.isActive) { ... }
-// Tidak ada cek plan.isFree
-```
-
-Free plan seharusnya hanya bisa di-claim via `/api/purchase/free`, bukan lewat flow pembayaran biasa.
-
----
-
-### BUG-023 — `history/route.ts` Tidak Ada Paginasi
-
-**File:** `app/api/history/route.ts`  
-**Dampak:** User dengan riwayat transaksi sangat banyak akan menerima payload JSON yang besar setiap kali membuka halaman history.
-
-Endpoint mengambil 50 transactions + 50 swaps sekaligus tanpa opsi pagination.
-
----
-
-### BUG-024 — `AuthProvider` Dev Mode Menyimpan Seluruh User Object di `localStorage`
-
-**File:** `components/AuthProvider.tsx`  
-**Dampak:** Jika schema `IAuthUser` berubah (field ditambah/dihapus), data di localStorage dari sesi sebelumnya bisa menyebabkan bug halus di mode development.
-
-**Masalah:**
-```ts
-const devUser = localStorage.getItem("dream_miner_dev_user");
-if (devUser) {
-  setUser(JSON.parse(devUser));  // tidak ada validasi schema
-  setStatus("authenticated");
+const existing = await prisma.plan.findUnique({ where: { slug } });
+if (existing) {
+  return NextResponse.json({ error: `Slug "${slug}" already exists` }, { status: 409 });
 }
 ```
 
-Tidak ada validasi bahwa object yang tersimpan cocok dengan `IAuthUser` yang diharapkan.
+---
+
+### BUG-022 — ~~`purchase/route.ts` Tidak Validasi `isFree` Plan~~ ✅ FIXED
+
+**File:** `app/api/purchase/route.ts`
+
+**Fix:** Ditambahkan guard `if (plan.isFree)` setelah validasi plan aktif. Request untuk membeli free plan via endpoint ini ditolak dengan HTTP 400 dan pesan yang mengarahkan ke `/api/purchase/free`.
 
 ---
 
-## Prioritas Perbaikan yang Disarankan
+### BUG-023 — ~~`history/route.ts` Tidak Ada Paginasi~~ ✅ FIXED
 
-1. **BUG-001** — Validasi Telegram `initData` (security kritis)
-2. **BUG-004** — Proteksi endpoint `/api/cron`
-3. **BUG-005** — Timing-safe admin password comparison
-4. **BUG-007** — Auth guard untuk wallet endpoint
-5. **BUG-003** — Flush hashes sebelum expire di lazyCron
-6. **BUG-002** — Race condition di swap
-7. **BUG-006** — Hapus `ignoreBuildErrors: true`
-8. **BUG-010** — Filter `expiresAt` di leaderboard
-9. **BUG-008** — Tingkatkan limit verifikasi transaksi
-10. **BUG-015** — Gunakan Prisma transaction saat flush contracts
+**File:** `app/api/history/route.ts`
+
+**Fix:** Endpoint sekarang menerima query params `?page=1&pageSize=20`. Default pageSize 20, maksimum 50. Response menyertakan `page` dan `pageSize` untuk navigasi client.
+
+```
+GET /api/history?userId=xxx&page=2&pageSize=20
+```
+
+---
+
+### BUG-024 — ~~`AuthProvider` Dev Mode Menyimpan Seluruh User Object di `localStorage`~~ ✅ FIXED
+
+**File:** `components/AuthProvider.tsx`
+
+**Fix:** Ditambahkan validasi field wajib (`id`, `telegramId`, `firstName`) sebelum menggunakan data dari localStorage. Jika validasi gagal (schema berubah), data lama dihapus otomatis dan user diminta login ulang.
+
+```ts
+const parsed = JSON.parse(raw) as Partial<IAuthUser>;
+if (parsed.id && parsed.telegramId && parsed.firstName) {
+  setUser(parsed as IAuthUser);
+} else {
+  localStorage.removeItem("dream_miner_dev_user");  // data lama tidak valid
+  setStatus("new_user");
+}
+```
+
+---
+
+## Status Keseluruhan
+
+| Kategori | Total | Fixed | Pending |
+|---|---|---|---|
+| 🔴 Kritis | 5 | 5 | 0 |
+| 🟠 Tinggi | 6 | 6 | 0 |
+| 🟡 Sedang | 8 | 6 | 2 |
+| 🔵 Rendah | 5 | 5 | 0 |
+| **Total** | **24** | **22** | **2** |
+
+**BUG-016** dan **BUG-017** adalah satu-satunya yang belum diselesaikan, keduanya bukan bug keamanan — BUG-016 membutuhkan keputusan product, BUG-017 membutuhkan perubahan arsitektur deployment.
 
 ---
 

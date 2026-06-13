@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { giveJoinBonus } from "@/lib/referralBonus";
+import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import { createHmac } from "crypto";
 
 /**
@@ -37,10 +38,16 @@ export async function POST(request: NextRequest) {
     const { initData, telegramId, username, firstName, lastName, languageCode, referralCode } = body;
 
     // ── Validasi initData dari Telegram (BUG-001) ─────────────────────────────
-    const botToken = process.env.BOT_TOKEN;
+    // Bot token disimpan di DB (AppSetting), bukan env var.
+    // Fallback ke process.env.BOT_TOKEN untuk dev lokal.
+    let botToken = process.env.BOT_TOKEN ?? null;
     if (!botToken) {
-      console.error("[Auth] BOT_TOKEN env variable is not set");
-      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+      try {
+        botToken = await getSetting(SETTING_KEYS.TELEGRAM_BOT_TOKEN);
+      } catch {
+        console.error("[Auth] telegram_bot_token not found in DB and BOT_TOKEN env not set");
+        return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+      }
     }
 
     // Izinkan bypass di dev mode jika BOT_TOKEN = "dev"
