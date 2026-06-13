@@ -9,7 +9,6 @@ DIRECT_URL="postgresql://user:password@host:5432/postgres"
 #   TON_NETWORK             → hot_wallet_mnemonic setting
 #   TON_API_KEY             → ton_api_key setting
 #   HOT_WALLET_MNEMONIC     → hot_wallet_mnemonic setting
-#   TELEGRAM_BOT_TOKEN      → telegram_bot_token setting
 #   TELEGRAM_NOTIFY_CHAT_ID → telegram_notify_chat_id setting
 #   NEXT_PUBLIC_BOT_USERNAME→ bot_username setting
 #
@@ -21,3 +20,9 @@ DIRECT_URL="postgresql://user:password@host:5432/postgres"
 ADMIN_PASSWORD="your_secure_admin_password"
 # Secret untuk sign JWT admin — minimal 32 karakter random
 ADMIN_JWT_SECRET="your_random_jwt_secret_minimum_32_characters"
+
+# ─── Telegram ─────────────────────────────────────────────────────────────────
+# Bot token untuk verifikasi initData dari Telegram Web App (BUG-001 fix).
+# Bisa juga diisi via /admin/settings → telegram_bot_token.
+# Set ke "dev" untuk bypass verifikasi di local development.
+TELEGRAM_BOT_TOKEN="your_telegram_bot_token"

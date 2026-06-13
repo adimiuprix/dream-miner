@@ -38,9 +38,8 @@ export async function POST(request: NextRequest) {
     const { initData, telegramId, username, firstName, lastName, languageCode, referralCode } = body;
 
     // ── Validasi initData dari Telegram (BUG-001) ─────────────────────────────
-    // Bot token disimpan di DB (AppSetting), bukan env var.
-    // Fallback ke process.env.BOT_TOKEN untuk dev lokal.
-    let botToken = process.env.BOT_TOKEN ?? null;
+    // Bot token: coba env var dulu, fallback ke DB (AppSetting).
+    let botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
     if (!botToken) {
       try {
         botToken = await getSetting(SETTING_KEYS.TELEGRAM_BOT_TOKEN);

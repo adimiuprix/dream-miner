@@ -87,7 +87,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Verifikasi identitas caller (BUG-007) ─────────────────────────────────
-    let botToken = process.env.BOT_TOKEN ?? null;
+    let botToken = process.env.TELEGRAM_BOT_TOKEN ?? null;
     if (!botToken) {
       try {
         botToken = await getSetting(SETTING_KEYS.TELEGRAM_BOT_TOKEN);
