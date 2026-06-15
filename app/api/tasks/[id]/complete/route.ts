@@ -1,17 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { validateTelegramMembership, parseTelegramChatId } from "@/lib/telegram-validator";
 
 /**
- * POST /api/tasks/[id]/complete
- * Mark a task as completed for a user and grant power reward.
- *
- * Body: { userId: string }
- *
- * Validation:
- *  - Non-repeatable: cannot complete if already completed
- *  - Repeatable: cannot complete if cooldown hasn't passed
- *  - REFERRAL tasks: validated against actual referral count
- *  - PURCHASE tasks: validated against actual purchase/wallet data
+ * POST /api/tasks/[id]/complete - Complete task with validation
+ * SOCIAL (Telegram): Real-time membership check | REFERRAL: Count check | PURCHASE: Transaction check
  */
 export async function POST(
   request: NextRequest,
@@ -61,9 +54,26 @@ export async function POST(
     }
 
     // ── Task-specific validation ───────────────────────────────────────────
+
+    // SOCIAL - Telegram membership validation
+    if (task.type === "SOCIAL") {
+      const chatId = parseTelegramChatId(task.metadata);
+      if (chatId) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { telegramId: true },
+        });
+        if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+        const { isValid, error } = await validateTelegramMembership(user.telegramId, chatId);
+        if (!isValid) {
+          return NextResponse.json({ error: error || "Please join the channel first" }, { status: 403 });
+        }
+      }
+    }
+
+    // REFERRAL - Count validation
     if (task.type === "REFERRAL") {
-      // BUG-012: Baca requiredReferrals dari metadata task, bukan hardcode ID.
-      // Ini memungkinkan admin menambah task referral baru tanpa perlu update kode.
       let requiredReferrals: number | null = null;
 
       if (task.metadata) {
@@ -84,7 +94,7 @@ export async function POST(
 
         if (referralCount < requiredReferrals) {
           return NextResponse.json(
-            { error: `You need ${requiredReferrals} referrals to complete this task. You have ${referralCount}.` },
+            { error: `You need ${requiredReferrals} referrals. You have ${referralCount}.` },
             { status: 400 }
           );
         }
