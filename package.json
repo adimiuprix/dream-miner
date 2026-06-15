@@ -13,6 +13,7 @@
     "tg:setup": "tsx scripts/setup-telegram-task.ts"
   },
   "dependencies": {
+    "@adsgram/react": "^1.0.2",
     "@ark-ui/react": "^5.37.0",
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@orbs-network/ton-access": "^2.3.3",
