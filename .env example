@@ -25,3 +25,7 @@ ADMIN_JWT_SECRET="your_random_jwt_secret_minimum_32_characters"
 # Bot token dari @BotFather — untuk verifikasi initData dan pengiriman notifikasi.
 # Set ke "dev" untuk bypass verifikasi di local development.
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
+
+
+# Adsgram Block ID (get from https://adsgr.am)
+NEXT_PUBLIC_ADSGRAM_BLOCK_ID="503"
