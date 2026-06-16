@@ -3,6 +3,7 @@ import { TelegramProvider } from "@/components/TelegramProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { MiningProvider } from "@/components/MiningProvider";
 import { TonConnectProvider } from "@/components/TonConnectProvider";
+import { AdsgramProvider } from "@/components/AdsgramProvider";
 import AppWrapper from "@/components/AppWrapper";
 import { CronTrigger } from "@/components/CronTrigger";
 import { Toaster } from "@/components/ui/toast";
@@ -18,9 +19,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <TonConnectProvider>
           <AuthProvider>
             <MiningProvider>
-              <CronTrigger />
-              <AppWrapper>{children}</AppWrapper>
-              <Toaster />
+              <AdsgramProvider>
+                <CronTrigger />
+                <AppWrapper>{children}</AppWrapper>
+                <Toaster />
+              </AdsgramProvider>
             </MiningProvider>
           </AuthProvider>
         </TonConnectProvider>

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { AlertTriangle, User, ArrowDownUp, Shield } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { useAds } from "@/components/AdsgramProvider";
 
 interface SwapPreview {
   canSwap: boolean;
@@ -27,6 +28,7 @@ interface SwapModalProps {
 }
 
 export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapModalProps) {
+  const { showAd } = useAds();
   const [preview, setPreview] = useState<SwapPreview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
@@ -86,15 +88,48 @@ export function SwapModal({ open, onOpenChange, userId, onSwapComplete }: SwapMo
         return;
       }
 
-      // Success - close modal and notify parent
-      onOpenChange({ open: false });
-      onSwapComplete?.();
-
+      // Success - show ad for bonus
       toast.create({
         title: "Swap successful!",
         description: `Swapped ${data.swap.hashesSwapped.toFixed(2)} HASHES → ${data.swap.tonReceived.toFixed(4)} TON`,
         type: "success",
       });
+
+      // Offer ad for 10% bonus
+      const watchAdForBonus = await new Promise<boolean>((resolve) => {
+        const toastId = toast.create({
+          title: "🎁 Watch ad for +10% bonus?",
+          description: "Get extra TON by watching a short ad",
+          type: "info",
+          action: {
+            label: "Watch Ad",
+            onClick: () => {
+              toast.dismiss(toastId);
+              resolve(true);
+            },
+          },
+        });
+        setTimeout(() => {
+          toast.dismiss(toastId);
+          resolve(false);
+        }, 5000);
+      });
+
+      if (watchAdForBonus) {
+        const watched = await showAd();
+        if (watched) {
+          // Grant 10% bonus (API call here if needed)
+          toast.create({
+            title: "Bonus applied!",
+            description: `+${(data.swap.tonReceived * 0.1).toFixed(4)} TON bonus`,
+            type: "success",
+          });
+        }
+      }
+
+      // Close modal and refresh
+      onOpenChange({ open: false });
+      onSwapComplete?.();
     } catch (err: any) {
       console.error("Swap error:", err);
       setError(err.message || "Failed to swap");

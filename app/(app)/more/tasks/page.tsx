@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useMining } from "@/components/MiningProvider";
+import { useAds } from "@/components/AdsgramProvider";
 import SubPageHeader from "../_components/SubPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -135,6 +136,7 @@ function TaskCard({
 export default function TasksPage() {
   const { user }    = useAuth();
   const { refresh } = useMining();
+  const { showAd }  = useAds();
 
   const [tasks,      setTasks]      = useState<TaskItem[]>([]);
   const [stats,      setStats]      = useState<TaskStats>({ totalEarned: 0, available: 0, completed: 0 });
@@ -166,6 +168,27 @@ export default function TasksPage() {
 
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+
+    // For AD type tasks (DAILY with "ad" in title), show ad first
+    if (task.type === "DAILY" && task.title.toLowerCase().includes("ad")) {
+      setCompleting(taskId);
+      try {
+        const watched = await showAd();
+        
+        if (!watched) {
+          setToast("❌ Please watch the full ad to claim");
+          setCompleting(null);
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+        // Continue to API call below
+      } catch (error) {
+        setToast("❌ Ad failed to load");
+        setCompleting(null);
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+    }
 
     // For tasks with link, open URL first then claim
     if (task.link) {

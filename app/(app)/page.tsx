@@ -6,6 +6,7 @@ import MiningRing from "@/components/MiningRing";
 import TopBar from "@/components/TopBar";
 import dynamic from "next/dynamic";
 import { toast } from "@/components/ui/toast";
+import DailyAdBonus from "@/components/DailyAdBonus";
 
 const HashCounter = dynamic(() => import("@/components/HashCounter"), { ssr: false });
 
@@ -15,10 +16,12 @@ import SwapCard from "@/components/SwapCard";
 import QuickActions, { QuickAction } from "@/components/QuickActions";
 import { useAuth } from "@/components/AuthProvider";
 import { useMining } from "@/components/MiningProvider";
+import { useAds } from "@/components/AdsgramProvider";
 
 export default function HomePage() {
   const { user } = useAuth();
   const { refresh } = useMining();
+  const { showAd } = useAds();
   const router = useRouter();
   const [claimLoading, setClaimLoading] = useState(false);
 
@@ -30,6 +33,17 @@ export default function HomePage() {
 
     setClaimLoading(true);
     try {
+      // 1. Show ad first
+      toast.create({ title: "Watch a short ad to claim free power", type: "info" });
+      const watched = await showAd();
+
+      if (!watched) {
+        toast.create({ title: "Please watch the ad to claim", type: "warning" });
+        setClaimLoading(false);
+        return;
+      }
+
+      // 2. Claim free plan after ad
       const res = await fetch("/api/purchase/free", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,6 +99,7 @@ export default function HomePage() {
 
       <StatsBar />
       <ContractSection />
+      <DailyAdBonus />
       <SwapCard />
       <QuickActions actions={quickActions} />
     </div>

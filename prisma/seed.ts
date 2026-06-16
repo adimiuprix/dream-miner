@@ -235,8 +235,8 @@ async function main() {
     // ── Daily ─────────────────────────────────────────────────────────────────
     {
       id: "task-daily-checkin",
-      title: "Daily check-in",
-      description: "Open the app every day to claim your bonus",
+      title: "Daily Check-in Ad",
+      description: "Watch a short ad to claim your daily bonus",
       type: "DAILY" as const,
       reward: 1_000,
       link: null,
