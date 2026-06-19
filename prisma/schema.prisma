@@ -196,6 +196,16 @@ model UserTask {
   @@index([completedAt])
 }
 
+// ─── Ad Session (single-use tokens untuk verify Adsgram) ────────────────────
+model AdSession {
+  sessionId String   @id                      // Unique session ID dari token
+  userId    String                            // User yang claim reward
+  usedAt    DateTime @default(now())         // Timestamp saat token digunakan
+  
+  @@index([usedAt])                           // For cleanup queries
+  @@index([userId])
+}
+
 // ─── App Settings (key-value store) ─────────────────────────────────────────
 model AppSetting {
   key         String   @id                    // Unique setting key, e.g. "hash_to_ton_rate"

@@ -33,7 +33,26 @@ export default function HomePage() {
 
     setClaimLoading(true);
     try {
-      // 1. Show ad first
+      // Step 1: Get signed token
+      const prepareRes = await fetch("/api/ad-session/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          rewardType: "free-power",
+          amount: 0, // Free plan, no direct reward
+        }),
+      });
+
+      const prepareData = await prepareRes.json();
+      
+      if (!prepareData.success || !prepareData.token) {
+        toast.create({ title: "Failed to prepare", type: "error" });
+        setClaimLoading(false);
+        return;
+      }
+
+      // Step 2: Show ad first
       toast.create({ title: "Watch a short ad to claim free power", type: "info" });
       const watched = await showAd();
 
@@ -43,7 +62,22 @@ export default function HomePage() {
         return;
       }
 
-      // 2. Claim free plan after ad
+      // Step 3: Verify token
+      const verifyRes = await fetch("/api/ad-session/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: prepareData.token }),
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (!verifyData.valid) {
+        toast.create({ title: "Verification failed", type: "error" });
+        setClaimLoading(false);
+        return;
+      }
+
+      // Step 4: Claim free plan
       const res = await fetch("/api/purchase/free", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

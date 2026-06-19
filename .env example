@@ -29,3 +29,7 @@ TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
 
 # Adsgram Block ID (get from https://adsgr.am)
 NEXT_PUBLIC_ADSGRAM_BLOCK_ID="503"
+
+# Verification Secret untuk sign ad tokens (minimal 32 karakter random)
+# Generate dengan: openssl rand -hex 32
+ADSGRAM_VERIFICATION_SECRET="your_random_secret_minimum_32_characters"

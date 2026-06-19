@@ -21,7 +21,7 @@ export default function DailyAdBonus() {
     if (!user?.id) return;
     
     try {
-      const res = await fetch(`/api/daily-ad?userId=${user.id}`);
+      const res = await fetch(`/api/daily-ad/prepare?userId=${user.id}`);
       const data = await res.json();
       
       if (data.canWatch) {
@@ -60,6 +60,17 @@ export default function DailyAdBonus() {
 
     setLoading(true);
     try {
+      // Step 1: Get signed token
+      const prepareRes = await fetch(`/api/daily-ad/prepare?userId=${user.id}`);
+      const prepareData = await prepareRes.json();
+
+      if (!prepareData.canWatch || !prepareData.token) {
+        toast.create({ title: prepareData.error || "Cannot watch ad now", type: "error" });
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Show ad
       const watched = await showAd();
       
       if (!watched) {
@@ -68,25 +79,25 @@ export default function DailyAdBonus() {
         return;
       }
 
-      // Grant reward
-      const res = await fetch("/api/daily-ad", {
+      // Step 3: Claim reward with token
+      const claimRes = await fetch("/api/daily-ad/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ token: prepareData.token }),
       });
 
-      const data = await res.json();
+      const claimData = await claimRes.json();
 
-      if (data.success) {
+      if (claimData.success) {
         toast.create({ 
           title: "Reward earned!", 
-          description: `+${data.reward.toLocaleString()} POWER`,
+          description: `+${claimData.reward.toLocaleString()} POWER`,
           type: "success" 
         });
         setCanWatch(false);
         checkEligibility();
       } else {
-        toast.create({ title: data.error || "Failed to claim", type: "error" });
+        toast.create({ title: claimData.error || "Failed to claim", type: "error" });
       }
     } catch (error) {
       console.error("Watch ad error:", error);

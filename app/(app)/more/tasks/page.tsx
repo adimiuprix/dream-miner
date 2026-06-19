@@ -169,10 +169,32 @@ export default function TasksPage() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    // For AD type tasks (DAILY with "ad" in title), show ad first
+    // For AD type tasks (DAILY with "ad" in title), show ad first with verification
     if (task.type === "DAILY" && task.title.toLowerCase().includes("ad")) {
       setCompleting(taskId);
       try {
+        // Step 1: Get signed token
+        const prepareRes = await fetch("/api/ad-session/prepare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            rewardType: "task-ad",
+            amount: task.reward,
+            metadata: { taskId },
+          }),
+        });
+
+        const prepareData = await prepareRes.json();
+
+        if (!prepareData.success || !prepareData.token) {
+          setToast("❌ Failed to prepare ad");
+          setCompleting(null);
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+
+        // Step 2: Show ad
         const watched = await showAd();
         
         if (!watched) {
@@ -181,9 +203,26 @@ export default function TasksPage() {
           setTimeout(() => setToast(null), 3000);
           return;
         }
-        // Continue to API call below
+
+        // Step 3: Verify token before completing task
+        const verifyRes = await fetch("/api/ad-session/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: prepareData.token }),
+        });
+
+        const verifyData = await verifyRes.json();
+
+        if (!verifyData.valid) {
+          setToast("❌ Verification failed");
+          setCompleting(null);
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+
+        // Continue to task completion below
       } catch (error) {
-        setToast("❌ Ad failed to load");
+        setToast("❌ Ad verification failed");
         setCompleting(null);
         setTimeout(() => setToast(null), 3000);
         return;
