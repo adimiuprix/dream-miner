@@ -20,13 +20,19 @@ export function AdsgramProvider({ children }: { children: React.ReactNode }) {
 
   const showAd = useCallback(async (): Promise<boolean> => {
     try {
-      if (showAdsgram) {
-        await showAdsgram.show();
-        return true;
+      console.log("[Adsgram] showAd called, showAdsgram ready:", !!showAdsgram);
+      
+      if (!showAdsgram) {
+        console.error("[Adsgram] SDK not ready");
+        return false;
       }
-      return false;
+      
+      console.log("[Adsgram] Calling showAdsgram.show()...");
+      await showAdsgram.show();
+      console.log("[Adsgram] Ad completed successfully");
+      return true;
     } catch (error) {
-      console.log("[Adsgram] Ad skipped or failed:", error);
+      console.error("[Adsgram] Ad error:", error);
       return false;
     }
   }, [showAdsgram]);

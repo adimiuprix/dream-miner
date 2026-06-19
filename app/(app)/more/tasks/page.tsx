@@ -136,7 +136,7 @@ function TaskCard({
 export default function TasksPage() {
   const { user }    = useAuth();
   const { refresh } = useMining();
-  const { showAd }  = useAds();
+  const { showAd, isReady }  = useAds();
 
   const [tasks,      setTasks]      = useState<TaskItem[]>([]);
   const [stats,      setStats]      = useState<TaskStats>({ totalEarned: 0, available: 0, completed: 0 });
@@ -171,9 +171,12 @@ export default function TasksPage() {
 
     // For AD type tasks (DAILY with "ad" in title), show ad first with verification
     if (task.type === "DAILY" && task.title.toLowerCase().includes("ad")) {
+      console.log("[TasksPage] Ad task detected:", task.title);
+      
       setCompleting(taskId);
       try {
         // Step 1: Get signed token
+        console.log("[TasksPage] Preparing ad token...");
         const prepareRes = await fetch("/api/ad-session/prepare", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -186,6 +189,7 @@ export default function TasksPage() {
         });
 
         const prepareData = await prepareRes.json();
+        console.log("[TasksPage] Prepare response:", prepareData);
 
         if (!prepareData.success || !prepareData.token) {
           setToast("❌ Failed to prepare ad");
@@ -195,7 +199,18 @@ export default function TasksPage() {
         }
 
         // Step 2: Show ad
+        console.log("[TasksPage] Adsgram ready:", isReady);
+        
+        if (!isReady) {
+          setToast("⏳ Ad SDK loading, please wait...");
+          setCompleting(null);
+          setTimeout(() => setToast(null), 3000);
+          return;
+        }
+        
+        console.log("[TasksPage] Showing ad...");
         const watched = await showAd();
+        console.log("[TasksPage] Ad watched result:", watched);
         
         if (!watched) {
           setToast("❌ Please watch the full ad to claim");
@@ -205,6 +220,7 @@ export default function TasksPage() {
         }
 
         // Step 3: Verify token before completing task
+        console.log("[TasksPage] Verifying token...");
         const verifyRes = await fetch("/api/ad-session/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -212,6 +228,7 @@ export default function TasksPage() {
         });
 
         const verifyData = await verifyRes.json();
+        console.log("[TasksPage] Verify response:", verifyData);
 
         if (!verifyData.valid) {
           setToast("❌ Verification failed");
@@ -222,6 +239,7 @@ export default function TasksPage() {
 
         // Continue to task completion below
       } catch (error) {
+        console.error("[TasksPage] Ad flow error:", error);
         setToast("❌ Ad verification failed");
         setCompleting(null);
         setTimeout(() => setToast(null), 3000);
