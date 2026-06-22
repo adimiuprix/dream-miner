@@ -32,11 +32,6 @@ export interface MiningStats {
   lastSyncAt: number;       // Unix timestamp (ms) untuk baseline animasi client
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helper: flush semua contract aktif milik userId
-// BUG-015: Gunakan Prisma transaction agar jika salah satu update gagal,
-//          semua update di-rollback — tidak ada gap/inconsistency hashes.
-// ─────────────────────────────────────────────────────────────────────────────
 async function flushActiveContracts(userId: string, nowMs: number): Promise<void> {
   const [contracts, powerToHashRate] = await Promise.all([
     prisma.contract.findMany({

@@ -76,11 +76,10 @@ export async function POST(request: NextRequest) {
         data: {
           status:            "ACTIVE",
           expiresAt:         BigInt(expiresAtMs),
-          lastSyncAt:        BigInt(nowMs),
-          accumulatedHashes: 0,
+          lastSyncAt:        BigInt(nowMs)
         },
       });
-      console.log(`[FreePlan] Reactivated contract ${contract.id} for user ${userId} (expires in 12h)`);
+      console.log(`[FreePlan] Reactivated contract. This contract will expires in 12h`);
     } else {
       // Buat contract baru untuk user yang belum pernah claim
       contract = await prisma.contract.create({
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
           lastSyncAt: BigInt(nowMs),
         },
       });
-      console.log(`[FreePlan] Created contract ${contract.id} for user ${userId} (expires in 12h)`);
+      console.log(`[FreePlan] Created contract expires in 12h`);
     }
 
     return NextResponse.json({ success: true, contract: serializeContract(contract) });
